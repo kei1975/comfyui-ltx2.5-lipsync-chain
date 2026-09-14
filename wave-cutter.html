@@ -1,0 +1,435 @@
+<title>Scene Cut Waveform</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap">
+<style>
+  :root {
+    --bg: #15171b;
+    --panel: #1d2026;
+    --panel-2: #23272e;
+    --line: #2f343d;
+    --text: #e8e5de;
+    --muted: #8f949e;
+    --wave: #5f9cae;
+    --wave-dim: #35586a;
+    --cut: #f0a63a;
+    --cut-soft: rgba(240, 166, 58, .18);
+    --play: #ef6b5a;
+    --ok: #7bb57a;
+    --warn: #e0b04f;
+    --font: "IBM Plex Sans", "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+    --mono: "IBM Plex Mono", Consolas, "Courier New", monospace;
+    --cond: "IBM Plex Sans Condensed", "IBM Plex Sans", "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 var(--font); }
+  .app { max-width: 1400px; margin: 0 auto; padding: 20px 24px 40px; display: grid; gap: 16px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  h1 { font: 600 20px/1.2 var(--cond); letter-spacing: .01em; margin: 0; }
+  h1 small { font: 500 12px/1 var(--cond); color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-left: 10px; }
+  .hint { color: var(--muted); font-size: 12.5px; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; background: var(--panel); border: 1px solid var(--line); padding: 10px 14px; border-radius: 6px; }
+  .bar label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+  .bar input[type=number] { width: 68px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; font: 13px var(--mono); }
+  .bar select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; font: 13px var(--font); }
+  button { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 5px 12px; font: 500 13px var(--font); cursor: pointer; }
+  button:hover { border-color: var(--muted); }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--cut); outline-offset: 1px; }
+  button.primary { background: var(--cut); color: #1b1408; border-color: transparent; }
+  button.primary:hover { filter: brightness(1.08); }
+  .file { position: relative; overflow: hidden; }
+  .file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .sep { width: 1px; height: 22px; background: var(--line); }
+  .time { font: 500 13px var(--mono); font-variant-numeric: tabular-nums; min-width: 12ch; }
+
+  .wave-wrap { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px 8px 6px; }
+  .scroller { overflow-x: auto; overflow-y: hidden; border-radius: 4px; background: #101215; }
+  .scroller::-webkit-scrollbar { height: 10px; }
+  .scroller::-webkit-scrollbar-thumb { background: var(--line); border-radius: 5px; }
+  canvas { display: block; cursor: crosshair; }
+  .legend { display: flex; gap: 18px; padding: 6px 4px 0; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
+  .legend b { font-weight: 500; color: var(--text); }
+  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 5px; }
+
+  .grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr); gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; }
+  .panel h2 { font: 600 12px/1 var(--cond); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--line); font-size: 13px; white-space: nowrap; }
+  th { color: var(--muted); font-weight: 500; font-family: var(--cond); letter-spacing: .04em; }
+  td:first-child, th:first-child { text-align: left; }
+  td.num { font-family: var(--mono); }
+  tr.seg { cursor: pointer; }
+  tr.seg:hover td { background: var(--panel-2); }
+  tr.seg.active td { background: var(--cut-soft); }
+  .pill { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11.5px; font-family: var(--cond); letter-spacing: .03em; }
+  .pill.ok { background: rgba(123,181,122,.18); color: var(--ok); }
+  .pill.warn { background: rgba(224,176,79,.18); color: var(--warn); }
+  .table-wrap { overflow-x: auto; }
+
+  textarea { width: 100%; min-height: 64px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 8px; font: 13px/1.5 var(--mono); resize: vertical; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 13px; margin-top: 10px; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .toast { color: var(--ok); font-size: 12.5px; min-height: 1.2em; }
+  kbd { font: 11.5px var(--mono); background: var(--panel-2); border: 1px solid var(--line); border-radius: 3px; padding: 0 5px; }
+  .help { color: var(--muted); font-size: 12.5px; line-height: 1.7; margin: 0; padding-left: 0; list-style: none; }
+</style>
+
+<div class="app">
+  <header>
+    <h1>Scene Cut Waveform <small>LTX Chain · scene_cuts</small></h1>
+    <div class="hint">mp3 を読み込み → 波形をクリックでカット線 → 下の文字列を State の <b>scene_cuts</b> に貼る。音声はこのブラウザ内だけで処理されます。</div>
+  </header>
+
+  <div class="bar">
+    <button class="file primary">mp3 を読み込む<input type="file" id="file" accept="audio/*"></button>
+    <span id="fname" class="hint">サンプル波形（60 秒）を表示中</span>
+    <span class="sep"></span>
+    <button id="play">再生</button>
+    <span class="time" id="clock">0:00.00 / 0:00.00</span>
+    <span class="sep"></span>
+    <label>audio_start_sec <input type="number" id="astart" value="0" min="0" step="0.1"></label>
+    <label>chunk_seconds <input type="number" id="chunk" value="10" min="1" max="60" step="1"></label>
+    <label>スナップ
+      <select id="snap"><option value="0.1">0.1 秒</option><option value="0.5">0.5 秒</option><option value="1">1 秒</option><option value="0">なし</option></select>
+    </label>
+    <label>ズーム <input type="range" id="zoom" min="1" max="16" step="1" value="1" style="width:110px"></label>
+    <label>分 / クリップ <input type="number" id="mins" value="6.5" min="0.1" step="0.5" title="1 クリップの生成にかかる時間の目安（v19: 10 秒クリップで約 6.5 分）"></label>
+  </div>
+
+  <div class="wave-wrap">
+    <div class="scroller" id="scroller"><canvas id="cv" height="220"></canvas></div>
+    <div class="legend">
+      <span><span class="sw" style="background:var(--wave)"></span>波形</span>
+      <span><span class="sw" style="background:var(--cut)"></span>カット線 = シーンの切り替え（ハードカット）</span>
+      <span><span class="sw" style="background:var(--play)"></span>再生位置</span>
+      <span>クリック: 線を追加 · ドラッグ: 移動 · ダブルクリック / <kbd>Delete</kbd>: 削除 · 上の目盛りをクリック: 再生位置 · <kbd>Space</kbd>: 再生</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>区間 → シーン</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>シーン</th><th>開始</th><th>終了</th><th>長さ</th><th>クリップ数</th><th>最後のクリップ</th><th></th></tr></thead>
+          <tbody id="segs"></tbody>
+        </table>
+      </div>
+      <dl class="kv">
+        <dt>合計クリップ数</dt><dd id="nclips">0</dd>
+        <dt>生成時間の目安</dt><dd id="est">0 分</dd>
+        <dt>1 クリップの新規部分</dt><dd id="stepinfo">—</dd>
+      </dl>
+    </div>
+    <div class="panel">
+      <h2>scene_cuts（State に貼る）</h2>
+      <textarea id="out" spellcheck="false" placeholder="12.5, 24, 40.2"></textarea>
+      <div class="row">
+        <button class="primary" id="copy">コピー</button>
+        <button id="clear">全部消す</button>
+        <button id="auto">chunk ごとに線を置く</button>
+        <span class="toast" id="toast"></span>
+      </div>
+      <ul class="help" style="margin-top:12px">
+        <li>・区間 1 は最初の画像のシーン（Scene Prompt の scenes 1 つ目）。以降、区間 k → scenes の k 番目。scenes が足りなければ先頭に戻ります</li>
+        <li>・区間ごとに chunk_seconds ずつつないで生成し、区間の終わりでぴったり切ります。短い端数の区間も 1 クリップ生成されるので、線は歌の切れ目・拍に置きつつ「最後のクリップ」が短すぎないところがお得です</li>
+        <li>・audio_start_sec より前 / 曲の終わりより後の線は無視されます。0.5 秒未満の区間は結合されます</li>
+        <li>・この欄は直接編集もできます（カンマ or 空白区切り）。線の位置はブラウザに記憶されます（ファイル名ごと）</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const cv = $('cv'), ctx = cv.getContext('2d'), scroller = $('scroller');
+  const FPS = 24, OVERLAP = 8;
+  const RULER = 22;
+
+  let ac = null, buffer = null, duration = 60, peaks = null, fileKey = 'sample';
+  let cuts = [12.5, 24, 40.2];
+  let selected = -1, dragging = -1, dragMoved = false;
+  let playing = false, src = null, playStart = 0, playOffset = 0;
+  let zoom = 1;
+
+  // ---------- sample waveform so the page shows what it does before a file is loaded ----------
+  function sampleBuffer() {
+    const sr = 8000, n = sr * 60, data = new Float32Array(n);
+    let seed = 7;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < n; i++) {
+      const t = i / sr;
+      const bar = Math.pow(Math.abs(Math.sin(t * Math.PI)), 6) * 0.5 + 0.2;
+      const section = t < 12.5 ? 0.35 : (t < 40 ? 0.9 : (t < 52 ? 0.5 : 1.0));
+      data[i] = (rnd() * 2 - 1) * bar * section * (0.6 + 0.4 * Math.sin(t * 0.9));
+    }
+    return { sampleRate: sr, duration: 60, numberOfChannels: 1, getChannelData: () => data };
+  }
+
+  function computePeaks(buf, columns) {
+    const chs = [];
+    for (let c = 0; c < buf.numberOfChannels; c++) chs.push(buf.getChannelData(c));
+    const len = chs[0].length, per = len / columns, out = new Float32Array(columns * 2);
+    for (let x = 0; x < columns; x++) {
+      let mn = 1, mx = -1;
+      const a = Math.floor(x * per), b = Math.min(len, Math.floor((x + 1) * per));
+      const stride = Math.max(1, Math.floor((b - a) / 400));
+      for (let i = a; i < b; i += stride) {
+        let v = 0;
+        for (const ch of chs) v += ch[i];
+        v /= chs.length;
+        if (v < mn) mn = v; if (v > mx) mx = v;
+      }
+      out[x * 2] = mn; out[x * 2 + 1] = mx;
+    }
+    return out;
+  }
+
+  // ---------- geometry ----------
+  const baseWidth = () => scroller.clientWidth - 2;
+  const cssWidth = () => Math.max(300, Math.floor(baseWidth() * zoom));
+  const xOf = t => t / duration * cssWidth();
+  const tOf = x => x / cssWidth() * duration;
+
+  function layout() {
+    const w = cssWidth(), h = 220, dpr = window.devicePixelRatio || 1;
+    cv.style.width = w + 'px'; cv.style.height = h + 'px';
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    peaks = computePeaks(buffer || sampleBuffer(), w);
+    draw();
+  }
+
+  const fmt = t => {
+    const m = Math.floor(t / 60), s = t - m * 60;
+    return m + ':' + (s < 10 ? '0' : '') + s.toFixed(2);
+  };
+  const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+  function tickStep() {
+    const pxPerSec = cssWidth() / duration;
+    for (const s of [0.5, 1, 2, 5, 10, 15, 30, 60, 120]) if (s * pxPerSec >= 70) return s;
+    return 300;
+  }
+
+  function draw() {
+    const w = cssWidth(), h = 220, mid = RULER + (h - RULER) / 2, amp = (h - RULER) / 2 - 6;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#101215'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#181b20'; ctx.fillRect(0, 0, w, RULER);
+
+    // ignored region before audio_start_sec
+    const a0 = +$('astart').value || 0;
+    if (a0 > 0) { ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(0, RULER, xOf(Math.min(a0, duration)), h - RULER); }
+
+    // ruler
+    const step = tickStep();
+    ctx.font = '11px ' + css('--mono'); ctx.fillStyle = css('--muted'); ctx.textBaseline = 'top';
+    ctx.strokeStyle = '#2a2e36'; ctx.lineWidth = 1;
+    for (let t = 0; t <= duration + 1e-6; t += step) {
+      const x = Math.round(xOf(t)) + .5;
+      ctx.beginPath(); ctx.moveTo(x, RULER - 6); ctx.lineTo(x, h); ctx.stroke();
+      ctx.fillText(fmt(t).replace(/\.\d+$/, ''), x + 3, 4);
+    }
+
+    // waveform
+    ctx.fillStyle = css('--wave');
+    for (let x = 0; x < w; x++) {
+      const mn = peaks[x * 2], mx = peaks[x * 2 + 1];
+      const y1 = mid - mx * amp, y2 = mid - mn * amp;
+      ctx.fillRect(x, y1, 1, Math.max(1, y2 - y1));
+    }
+    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(0, mid, w, 1);
+
+    // segments tint (alternate) + cut lines
+    const bounds = segmentBounds();
+    for (let i = 0; i + 1 < bounds.length; i++) {
+      if (i % 2 === 1) { ctx.fillStyle = 'rgba(255,255,255,.03)'; ctx.fillRect(xOf(bounds[i]), RULER, xOf(bounds[i + 1]) - xOf(bounds[i]), h - RULER); }
+      ctx.font = '600 12px ' + css('--cond'); ctx.fillStyle = css('--muted'); ctx.textBaseline = 'top';
+      ctx.fillText('シーン ' + (i + 1), xOf(bounds[i]) + 6, RULER + 6);
+    }
+    cuts.forEach((t, i) => {
+      const x = Math.round(xOf(t)) + .5;
+      ctx.strokeStyle = css('--cut'); ctx.lineWidth = i === selected ? 3 : 1.5;
+      ctx.beginPath(); ctx.moveTo(x, RULER); ctx.lineTo(x, h); ctx.stroke();
+      const label = fmt(t);
+      ctx.font = '500 11px ' + css('--mono');
+      const tw = ctx.measureText(label).width + 8;
+      ctx.fillStyle = css('--cut'); ctx.fillRect(x - tw / 2, h - 18, tw, 16);
+      ctx.fillStyle = '#1b1408'; ctx.textBaseline = 'middle'; ctx.fillText(label, x - tw / 2 + 4, h - 10);
+    });
+
+    // playhead
+    const pt = currentTime();
+    const px = Math.round(xOf(pt)) + .5;
+    ctx.strokeStyle = css('--play'); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, h); ctx.stroke();
+    ctx.fillStyle = css('--play'); ctx.beginPath(); ctx.moveTo(px - 5, 0); ctx.lineTo(px + 5, 0); ctx.lineTo(px, 8); ctx.fill();
+    $('clock').textContent = fmt(pt) + ' / ' + fmt(duration);
+  }
+
+  // ---------- segments / schedule (mirrors _schedule in nodes.py) ----------
+  function segmentBounds() {
+    const a0 = Math.min(+$('astart').value || 0, duration), end = duration;
+    const inner = cuts.filter(c => c > a0 + 0.5 && c < end - 0.5).sort((a, b) => a - b);
+    const clean = [a0];
+    for (const b of inner) if (b - clean[clean.length - 1] >= 0.5) clean.push(b);
+    clean.push(end);
+    return clean;
+  }
+  function clipsFor(L, chunk) {
+    const step = chunk - OVERLAP / FPS;
+    if (L <= chunk) return { m: 1, last: L };
+    const m = Math.ceil((L - chunk) / step - 1e-9) + 1;
+    return { m, last: L - (m - 1) * step };
+  }
+  function updateTable() {
+    const chunk = Math.max(1, +$('chunk').value || 10), bounds = segmentBounds();
+    const step = chunk - OVERLAP / FPS;
+    let total = 0, rows = '';
+    for (let i = 0; i + 1 < bounds.length; i++) {
+      const s = bounds[i], e = bounds[i + 1], L = e - s, c = clipsFor(L, chunk);
+      total += c.m;
+      const short = c.m > 1 && c.last < 1.5;
+      rows += `<tr class="seg" data-i="${i}"><td>シーン ${i + 1}${i === 0 ? ' <span class="hint">(最初の画像)</span>' : ''}</td>` +
+        `<td class="num">${fmt(s)}</td><td class="num">${fmt(e)}</td><td class="num">${L.toFixed(2)} s</td><td class="num">${c.m}</td>` +
+        `<td class="num">${c.last.toFixed(2)} s <span class="pill ${short ? 'warn' : 'ok'}">${short ? '短い' : 'OK'}</span></td>` +
+        `<td><button data-play="${i}" title="この区間を再生">▶</button></td></tr>`;
+    }
+    $('segs').innerHTML = rows;
+    $('nclips').textContent = total;
+    $('est').textContent = Math.round(total * (+$('mins').value || 0)) + ' 分（' + (total * (+$('mins').value || 0) / 60).toFixed(1) + ' 時間）';
+    $('stepinfo').textContent = step.toFixed(2) + ' s（chunk ' + chunk + ' s − 重なり ' + (OVERLAP / FPS).toFixed(2) + ' s）';
+    $('out').value = bounds.slice(1, -1).map(t => +t.toFixed(2)).join(', ');
+    try { localStorage.setItem('scenecuts:' + fileKey, JSON.stringify(cuts)); } catch (e) {}
+  }
+  function refresh() { updateTable(); draw(); }
+
+  // ---------- interaction ----------
+  const snapTo = t => { const s = +$('snap').value; t = Math.max(0, Math.min(duration, t)); return s > 0 ? Math.round(t / s) * s : t; };
+  const hit = x => { let best = -1, bd = 7; cuts.forEach((t, i) => { const d = Math.abs(xOf(t) - x); if (d < bd) { bd = d; best = i; } }); return best; };
+  const localX = e => e.clientX - cv.getBoundingClientRect().left;
+
+  cv.addEventListener('mousedown', e => {
+    const x = localX(e), y = e.clientY - cv.getBoundingClientRect().top;
+    if (y < RULER) { seek(tOf(x)); return; }
+    const h = hit(x);
+    if (h >= 0) { selected = h; dragging = h; dragMoved = false; }
+    else { cuts.push(snapTo(tOf(x))); cuts.sort((a, b) => a - b); selected = cuts.indexOf(snapTo(tOf(x))); dragging = selected; dragMoved = false; }
+    refresh();
+  });
+  window.addEventListener('mousemove', e => {
+    if (dragging < 0) return;
+    dragMoved = true;
+    cuts[dragging] = snapTo(tOf(localX(e)));
+    draw();
+  });
+  window.addEventListener('mouseup', () => {
+    if (dragging < 0) return;
+    const t = cuts[dragging]; cuts.sort((a, b) => a - b); selected = cuts.indexOf(t); dragging = -1; refresh();
+  });
+  cv.addEventListener('dblclick', e => {
+    const h = hit(localX(e));
+    if (h >= 0) { cuts.splice(h, 1); selected = -1; refresh(); }
+  });
+  cv.addEventListener('mousemove', e => { cv.style.cursor = hit(localX(e)) >= 0 ? 'ew-resize' : 'crosshair'; });
+  window.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selected >= 0) { cuts.splice(selected, 1); selected = -1; refresh(); }
+    if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+  });
+
+  $('segs').addEventListener('click', e => {
+    const b = e.target.closest('button[data-play]');
+    const tr = e.target.closest('tr.seg');
+    if (!tr) return;
+    const i = +tr.dataset.i, bounds = segmentBounds();
+    [...$('segs').children].forEach(r => r.classList.toggle('active', r === tr));
+    if (b) { seek(bounds[i]); if (!playing) togglePlay(); }
+  });
+
+  $('out').addEventListener('change', () => {
+    const vals = $('out').value.split(/[\s,;]+/).filter(Boolean).map(Number).filter(v => !isNaN(v));
+    cuts = [...new Set(vals)].sort((a, b) => a - b); selected = -1; refresh();
+  });
+  $('copy').addEventListener('click', async () => {
+    const text = $('out').value;
+    try { await navigator.clipboard.writeText(text); $('toast').textContent = 'コピーしました → State の scene_cuts に貼り付け'; }
+    catch (e) { $('out').select(); document.execCommand && document.execCommand('copy'); $('toast').textContent = '選択しました（Ctrl+C でコピー）'; }
+    setTimeout(() => $('toast').textContent = '', 3000);
+  });
+  $('clear').addEventListener('click', () => { cuts = []; selected = -1; refresh(); });
+  $('auto').addEventListener('click', () => {
+    const chunk = Math.max(1, +$('chunk').value || 10), a0 = +$('astart').value || 0;
+    cuts = [];
+    for (let t = a0 + chunk * 2; t < duration - 1; t += chunk * 2) cuts.push(+t.toFixed(2));
+    selected = -1; refresh();
+  });
+  for (const id of ['astart', 'chunk', 'mins']) $(id).addEventListener('input', refresh);
+  $('zoom').addEventListener('input', () => {
+    const centre = (scroller.scrollLeft + scroller.clientWidth / 2) / cssWidth();
+    zoom = +$('zoom').value; layout();
+    scroller.scrollLeft = centre * cssWidth() - scroller.clientWidth / 2;
+  });
+  window.addEventListener('resize', layout);
+
+  // ---------- playback ----------
+  function currentTime() {
+    if (!playing || !ac) return playOffset;
+    return Math.min(duration, playOffset + (ac.currentTime - playStart));
+  }
+  function seek(t) {
+    const was = playing;
+    if (was) stop();
+    playOffset = Math.max(0, Math.min(duration, t));
+    if (was) start(); else draw();
+  }
+  function start() {
+    if (!buffer) { $('toast').textContent = 'まず mp3 を読み込んでください'; setTimeout(() => $('toast').textContent = '', 2500); return; }
+    if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+    if (ac.state === 'suspended') ac.resume();
+    src = ac.createBufferSource(); src.buffer = buffer; src.connect(ac.destination);
+    src.onended = () => { if (playing && currentTime() >= duration - 0.05) { playing = false; playOffset = 0; $('play').textContent = '再生'; draw(); } };
+    playStart = ac.currentTime; src.start(0, playOffset); playing = true; $('play').textContent = '停止';
+    tick();
+  }
+  function stop() {
+    playOffset = currentTime(); playing = false;
+    try { src && src.stop(); } catch (e) {}
+    $('play').textContent = '再生'; draw();
+  }
+  function togglePlay() { playing ? stop() : start(); }
+  function tick() {
+    if (!playing) return;
+    draw();
+    const px = xOf(currentTime());
+    if (px < scroller.scrollLeft || px > scroller.scrollLeft + scroller.clientWidth) scroller.scrollLeft = px - 40;
+    requestAnimationFrame(tick);
+  }
+  $('play').addEventListener('click', togglePlay);
+
+  // ---------- file ----------
+  $('file').addEventListener('change', async e => {
+    const f = e.target.files[0]; if (!f) return;
+    if (playing) stop();
+    if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+    $('fname').textContent = '読み込み中… ' + f.name;
+    try {
+      buffer = await ac.decodeAudioData(await f.arrayBuffer());
+    } catch (err) { $('fname').textContent = '読み込めませんでした: ' + f.name; return; }
+    duration = buffer.duration; fileKey = f.name + ':' + Math.round(duration * 100);
+    $('fname').textContent = f.name + '（' + fmt(duration) + '）';
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem('scenecuts:' + fileKey) || 'null'); } catch (e) {}
+    cuts = Array.isArray(saved) ? saved : [];
+    selected = -1; playOffset = 0;
+    layout(); updateTable();
+  });
+
+  layout(); updateTable();
+})();
+</script>

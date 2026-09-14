@@ -1,0 +1,213 @@
+# LTX‑2.5 Lip‑Sync Chain (with MSR)
+
+**Turn one photo + one song into a full‑length, lip‑synced music video — press Run once.**
+**写真1枚と曲1つから、フル尺のリップシンクMV を「Run 1回」で自動生成する ComfyUI 拡張です。**
+
+A set of custom ComfyUI nodes + workflows that chain LTX‑2.5 into a self‑continuing generator: each clip's last frames become the next clip's start, the singer's identity is held with **MSR (Multiple‑Subject Reference)**, scenes/camera angles change on the beat, and everything is concatenated with the original audio into one `final.mp4`.
+
+![example output — one identity held across a 30s clip](docs/example-output.jpg)
+
+<sub>Example: frames from a full ~3‑minute song. Same face, hair, glasses, outfit and studio throughout; expression follows the vocals. / 例：約3分のフル尺からのフレーム。顔・髪・眼鏡・服・スタジオは一貫、表情は歌声に追従。</sub>
+
+---
+
+## 🎬 Sample videos / サンプル動画
+
+Preview below is compressed to **480p**. Sample files are in [`videos/`](videos/).
+下のプレビューは **480p** 圧縮版です。サンプル動画は [`videos/`](videos/) にあります。
+
+> The clips have rough spots — they're here to show how much you can get from **just one photo + one audio file in a single Run**, not as a finished edit.
+> クリップには粗い箇所もありますが、これは **写真1枚と音源1つだけ・一回の実行**でここまで作れるという趣旨のデモで、完成品ではありません。
+
+**Paris d'avant** — pink‑glasses singer / ピンク眼鏡, ~3 min · exported at **576 × 720 px** / 書き出しサイズ 576×720
+
+<video src="videos/paris-davant-480p.mp4" controls width="360"></video>
+
+<sub>If the player doesn't load / 再生されない場合: <a href="videos/paris-davant-480p.mp4">480p (portrait)</a> · <a href="videos/Paris%20d%27avant-final_3-comp.mp4">larger 576×720</a></sub>
+
+> On GitHub, `.mp4` files play inline once the repo is public. Locally, click the links to open them. / GitHub 上では公開後にインライン再生されます。ローカルではリンクから開いてください。
+
+---
+
+## ✨ Features / 機能
+
+**English**
+
+- **One‑click chaining** — generate 5/10‑second clips back‑to‑back; the finished frames seed the next clip automatically until the song ends, then everything is joined into one video with the original audio.
+- **Identity lock (MSR)** — the singer's face/hair/outfit stays consistent across the whole video using the LTX‑2.5 Licon‑MSR IC‑LoRA.
+- **Scene / camera changes** — switch angle every N clips (`clips_per_scene`) or at exact times you mark on the audio waveform (`scene_cuts`).
+- **Waveform cut editor** — a built‑in node draws the song's waveform; click to place scene‑change lines, drag/delete, preview audio, and even **auto‑detect** cuts from tempo & song structure.
+- **Scene cross‑fade** — scene changes dissolve instead of hard‑cutting, without breaking length or lip‑sync.
+- **Auto prompt from the image** — Florence‑2 reads the input photo (appearance, outfit, setting) and writes the whole singing prompt for you. Optional fields for **nationality/ethnicity, age, number of singers, performance intensity, and custom camera angles**.
+- **Sing / don't‑sing detection** — vocals are separated (MelBandRoFormer); clips with little singing automatically use a "not singing" prompt so the mouth stays closed during instrumentals.
+- **Redo single clips** — regenerate just the clips you don't like (`redo_clips`), keeping the seams continuous; old clips are archived.
+- **Smooth seams & no drift** — per‑frame colour normalisation, deterministic sizing (no zoom creep), and a hand‑off/dissolve at every join.
+
+**日本語**
+
+- **ワンクリックのチェーン生成** — 5/10 秒のクリップを連続生成。終わったフレームが次の参照になり、曲の最後まで自動継続 → 元音声付きで1本に連結。
+- **顔の固定（MSR）** — LTX‑2.5 Licon‑MSR IC‑LoRA で、動画全体を通して顔・髪・服を一貫させます。
+- **シーン / カメラ切替** — N クリップごと（`clips_per_scene`）、または波形上で指定した秒（`scene_cuts`）で切り替え。
+- **波形カットエディタ** — 曲の波形を描くノードを内蔵。クリックで切替線を配置、移動/削除、音の試聴、テンポと曲構成からの **自動カット** も可能。
+- **シーンのクロスフェード** — 切替をハードカットではなくディゾルブに。長さもリップシンクも崩しません。
+- **画像からプロンプト自動生成** — Florence‑2 が入力画像（見た目・服・場所）を読み取り、歌もの用プロンプトを自動作成。**国籍・年齢・人数・歌い方の強さ・カメラアングル追加** も任意指定可。
+- **歌う/歌わないの自動判定** — 歌声を分離（MelBandRoFormer）し、歌の少ないクリップは自動で「歌わない」プロンプトに（間奏で口を閉じる）。
+- **クリップ単位のやり直し** — 気に入らないクリップだけ再生成（`redo_clips`）。継ぎ目は連続、旧クリップは退避。
+- **継ぎ目の滑らかさ・ドリフト対策** — 毎フレームの色正規化、確定的サイズ決定（ズームずれ無し）、各継ぎ目の受け渡し＋ディゾルブ。
+
+---
+
+## 🧩 Pipeline / 処理の流れ
+
+```mermaid
+flowchart LR
+    IMG["Start image 開始画像"] --> FL["Florence-2<br/>analyze 画像解析"]
+    FL --> AUTO["Auto Scenes<br/>prompt 自動生成"]
+    MP3["Song mp3 曲"] --> CUT["Scene Cuts<br/>waveform 波形"]
+    IMG --> MSR["MSR identity<br/>顔の固定"]
+    AUTO --> STATE["State<br/>clip plan 計画"]
+    CUT --> STATE
+    STATE --> GEN["LTX-2.5<br/>generate 1 clip"]
+    MSR --> GEN
+    GEN --> STEP["Step<br/>save + crossfade<br/>+ requeue"]
+    STEP -->|next clip 次のクリップ| STATE
+    STEP -->|last clip 最後| FINAL["final.mp4"]
+```
+
+---
+
+## 📦 Requirements / 必要環境
+
+> **Tested on / テスト環境:** Windows 11 · **RTX 4070 Ti (VRAM 12 GB)** · **RAM 32 GB** · ComfyUI v0.34.3.
+> A 10‑second clip takes ~6–7 min on this machine. More VRAM/RAM lets you raise `chunk_seconds` and run the prompt enhancer.
+> この環境で 10 秒クリップあたり約 6〜7 分。VRAM/RAM が大きいほど `chunk_seconds` を上げたり Enhancer を使えます。
+
+- **ComfyUI** with native **LTX‑2.5 AV** nodes (tested on v0.34.3). / ネイティブ LTX‑2.5 AV ノードを持つ ComfyUI（v0.34.3 で確認）。
+- **GPU** ~12 GB VRAM (tested RTX 4070 Ti) + **32 GB RAM**. `chunk_seconds` up to ~10 s is safe on 12 GB. / VRAM 12GB 目安（RTX 4070 Ti）＋ RAM 32GB。12GB では `chunk_seconds` 10 秒程度が安全上限。
+
+**Models / モデル** (download from your usual source, filenames may vary):
+
+| Purpose 用途 | File 例 | Folder |
+|---|---|---|
+| LTX‑2.5 distilled transformer | `ltx-2.5-22b-distilled-...int8...safetensors` | `models/diffusion_models` |
+| LTX‑2.5 video VAE | `ltx-2.5-video-vae-...safetensors` | `models/vae` |
+| LTX‑2.5 audio VAE | `ltx-2.5-audio-vae-...safetensors` | `models/vae` |
+| Gemma text encoder (type **ltxv**) — encodes prompts, **required** | `gemma4-12b-with-proj-ltx-2.5-...safetensors` | `models/text_encoders` |
+| **MSR IC‑LoRA** | `LTX-2.5-Licon-MSR-V1.safetensors` | `models/loras` |
+| **Florence‑2** (AUTO only) | `Florence-2-Flux-Large/` (folder) | `models/LLM` |
+| Gemma for the prompt **enhancer** — *optional, bypassed by default* | `gemma4_e4b_it_fp8_scaled.safetensors` | `models/text_encoders` |
+
+**Prerequisite node packs / 前提ノードパック**
+
+`ComfyUI-LTX2.5-MSR` · `comfyui-kjnodes` (Set/Get) · `comfyui-easy-use` (easy int / ifElse) · `comfyui-impact-pack` · `ComfyUI-MelBandRoFormer` · `comfy-mtb` · `derfuu_comfyui_moddednodes` · `comfyui-florence2` (AUTO only)
+
+---
+
+## 🚀 Installation / インストール
+
+1. **Copy the node** — put the `ComfyUI-LTX-Chain/` folder from this repo into `ComfyUI/custom_nodes/`.
+   このリポジトリの `ComfyUI-LTX-Chain/` を `ComfyUI/custom_nodes/` にコピー。
+2. Install the prerequisite node packs above (ComfyUI‑Manager → Install via Git URL, or `git clone`).
+   上記の前提パックを導入（ComfyUI‑Manager か `git clone`）。
+3. Download the models into the folders in the table above.
+   モデルを上表のフォルダに配置。
+4. **Restart ComfyUI completely.** / ComfyUI を完全に再起動。
+5. Open a workflow: drag any `LTX-2.5-lip sync-*.json` onto the ComfyUI canvas (or copy into `ComfyUI/user/default/workflows/`).
+   ワークフローを開く：`LTX-2.5-lip sync-*.json` を画面にドラッグ（または `workflows/` にコピー）。
+
+> After adding the node or editing a workflow, do **close tab → F5 → reopen** so the browser picks up the new definitions.
+> ノード追加・配線変更のあとは **タブを閉じる → F5 → 開き直し**（ブラウザが古い定義をキャッシュするため）。
+
+---
+
+## 🗂️ Workflows / ワークフロー
+
+| File | What it is / 内容 |
+|---|---|
+| `LTX-2.5-lip sync-CHAIN.json` | Chain generation only. / チェーン生成のみ |
+| `LTX-2.5-lip sync-CHAIN+MSR.json` | Chain + MSR identity lock. / チェーン＋顔固定 |
+| `LTX-2.5-lip sync-CHAIN+MSR-SCENES.json` | Adds scene/camera switching + waveform cuts + cross‑fade + redo. / シーン切替＋波形カット＋クロスフェード＋やり直し |
+| `LTX-2.5-lip sync-CHAIN+MSR-SCENES-AUTO.json` | **Fully automatic**: Florence‑2 writes the prompt from the image. Swap image + mp3 and Run. / **全自動**：画像からプロンプト自動生成。画像とmp3を差し替えて Run |
+
+Each workflow puts the controls you touch in a green **"① Inputs & Settings"** panel on the left; the machinery is boxed by step on the right.
+各ワークフローは、触るノードを左端の緑パネル「① 入力・設定」に集約。右側はステップ別ボックスです。
+
+---
+
+## 🖼️ Workflow at a glance / ワークフロー構成
+
+![ComfyUI screenshot — the custom nodes in the AUTO workflow](docs/workflow-screenshot.png)
+
+The custom nodes in ComfyUI: **LTX Chain: State** (all the settings), **Scene Cuts** (waveform with scene‑change lines), **Scene Prompt**, **Florence‑2** (image analysis) and **Auto Scenes** (image → prompt, with `num_singers` / `ethnicity` / `age` / `performance`).
+
+ComfyUI 上のカスタムノード：**LTX Chain: State**（各種設定）、**Scene Cuts**（波形＋シーン切替線）、**Scene Prompt**、**Florence‑2**（画像解析）、**Auto Scenes**（画像→プロンプト、`num_singers`/`ethnicity`/`age`/`performance`）。
+
+### Simplified node map / 簡易ノード配置図
+
+![workflow node map — custom nodes highlighted](docs/workflow-map.png)
+
+The controls you touch are grouped in the green **"① Inputs & Settings"** panel on the left. **Green = the custom nodes from this repo**, orange = Florence‑2, blue = image/audio loaders. Everything else is boxed by step (model load → audio → Stage 1 → Stage 2 → output) and rarely needs editing.
+
+操作するノードは左端の緑パネル「① 入力・設定」に集約。**緑＝本リポジトリのカスタムノード**、橙＝Florence‑2、青＝画像/音声の読み込み。右側はステップ別（モデル読み込み → 音声 → Stage 1 → Stage 2 → 出力）で通常は触りません。
+
+---
+
+## ▶️ Quick start (AUTO) / クイックスタート（全自動）
+
+1. Open `...SCENES-AUTO`. In the left panel, load your **photo** (LoadImage) and **song** (LoadAudio).
+   `...SCENES-AUTO` を開き、左パネルで **写真** と **曲** をセット。
+2. In **LTX Chain: State** set `chunk_seconds = 10`, `clips_per_scene = 2`. **Test with `length_mode = seconds` (e.g. `length_seconds = 15`) first**, then switch to `length_mode = all` for the whole song once the look is right.
+   **State** で `chunk_seconds = 10` / `clips_per_scene = 2`。**まず `length_mode = seconds`（例 `length_seconds = 15`）で短くテスト**し、良ければ `length_mode = all`（曲の最後まで）に切替。
+3. *(optional)* In **Auto Scenes** set `ethnicity`, `age`, `num_singers`, `performance`, or add `extra_cameras`.
+   *(任意)* **Auto Scenes** で `ethnicity`/`age`/`num_singers`/`performance` や `extra_cameras` を指定。
+4. Press **Run** once. Clips and `final.mp4` land in `ComfyUI/output/LTX2.5Chains/<date>_vNN/`.
+   **Run** を1回。クリップと `final.mp4` は `output/LTX2.5Chains/<日付>_vNN/` に。
+
+To place scene changes on the beat, use the **Scene Cuts** node's waveform (click to add lines, or "auto‑cut"). Lines override `clips_per_scene`.
+拍に合わせて切り替えたいときは **Scene Cuts** の波形（クリックで線／自動カット）。線があれば `clips_per_scene` より優先。
+
+### Settings guide — the State node / State ノード設定ガイド
+
+![annotated State node — key settings](docs/LTX-Chain-State-annotated.png)
+
+- **Test small first / まず小さくテスト** — run with `length_mode = seconds` + a short `length_seconds` (e.g. 15 s) to check the look, then switch to `all` for the full song. A full song is 30+ clips, so a short test saves a lot of time. / フル尺は 30 クリップ超になるので、短いテストで確認してから `all` に。
+- **Redo only bad clips / 気に入らないクリップだけ再生成** — set `redo_session` to the output folder (e.g. `20260914_v32`) and `redo_clips` to the clip numbers (e.g. `9,10`), then Run; seams stay continuous and old clips are archived. **Empty `redo_clips` = normal run**, so clear it when done. / `redo_session` にフォルダ名、`redo_clips` に番号を入れて Run。終わったら空に戻す。
+- **Output size / 書き出しサイズ** — pick a size from the **`resolution`** dropdown (LTX‑2.5‑safe presets, multiples of 64: portrait `576×1024`, square `768×768`, landscape `1024×576`, …). `auto` keeps the **input image's aspect ratio** and uses the `generation_width × height` pixel area (this is why the Paris sample came out `576×720`). Bigger = more VRAM; on 12 GB keep the area around ~600k px. / `resolution` から選ぶ（64 の倍数の安全サイズ）。`auto` は画像の縦横比のまま `generation_width×height` の面積で決定。大きいほど VRAM を使うので 12GB は ~600k px 目安。
+
+---
+
+## 🎛️ Nodes / ノード
+
+| Node | Role / 役割 |
+|---|---|
+| **LTX Chain: State** | Decides the clip plan, output size, references, and re‑queue state. / クリップ計画・サイズ・参照を決定 |
+| **LTX Chain: Step** | Saves the clip, colour‑normalises, cross‑fades seams, re‑queues, and builds `final.mp4`. / 保存・色正規化・継ぎ目・再投入・連結 |
+| **LTX Chain: Scene Cuts (waveform)** | Waveform editor for scene‑change times; manual + auto‑cut (tempo/structure). / 波形で切替位置を指定（手動＋自動） |
+| **LTX Chain: Scene Prompt** | Per‑scene camera text + sing/intro action (vocal‑aware). / シーン別カメラ＋歌う/歌わない |
+| **LTX Chain: Auto Scenes** | Florence‑2 caption → full singing prompt; ethnicity/age/singers/performance/extra cameras. / 画像→プロンプト自動生成 |
+
+Key State parameters / 主な State 設定: `chunk_seconds` (per‑clip length 1クリップ秒数), `length_mode` (`all`/`seconds`), `clips_per_scene`, `scene_cuts`, `msr_clips` (`stage2_all` recommended), `scene_crossfade`, `overlap_frames`, `handoff_color_match`, `seed`, `redo_session` / `redo_clips`.
+
+Standalone tool / 単体ツール: `wave-cutter.html` — the same waveform cut editor in a plain browser page (reads an mp3 locally, outputs the `scene_cuts` string).
+
+---
+
+## 💡 Tips & limits / コツと制約
+
+- **Over‑acting** — LTX tends to open the mouth wide on loud notes. Use `performance = subtle`/`restrained` and prefer wider framings; big sustained notes will still open the mouth (that is correct lip‑sync). / 大げさ→ `performance` を下げ、寄りを減らす。大きなロングトーンでは口が開くのは正しい挙動。
+- **Angles come from the prompt, not the reference images.** MSR references only lock identity. Add camera angles in Scene Prompt / `extra_cameras`. / アングルは REF ではなくプロンプトで決まる。
+- **Long runs may drift** — set `age`/`ethnicity` to stop the face aging; use matching, same‑person reference images. / 長尺のドリフトは `age`/`ethnicity` と参照画像で抑制。
+- **Scenes ≠ clips** — each scene region is generated as several `chunk_seconds` clips, so total clips > number of scenes. / シーン数 ≦ クリップ数（区間内も chunk ごとに分割）。
+- The prompt **enhancer** (Gemma) is bypassed by default — it does not fit in 32 GB RAM alongside the video model. / Enhancer は RAM 不足のため既定でバイパス。
+
+---
+
+## 🙏 Credits / クレジット
+
+Built on **LTX‑2.5** and the **ComfyUI‑LTX2.5‑MSR** IC‑LoRA nodes, with **Florence‑2** for captioning and **MelBandRoFormer** for vocal separation. The chain/scene/auto nodes in `ComfyUI-LTX-Chain/` are the original part of this project.
+
+**LTX‑2.5** と **ComfyUI‑LTX2.5‑MSR**（IC‑LoRA）を土台に、キャプションに **Florence‑2**、歌声分離に **MelBandRoFormer** を利用。`ComfyUI-LTX-Chain/` のチェーン/シーン/自動ノードが本プロジェクトのオリジナル部分です。
+
+Please follow the licenses of the upstream models and node packs you install. / 導入する上流モデル・ノードパックの各ライセンスに従ってください。
+
+<sub>See `memo.md` for the full development notes (Japanese). / 開発の詳細メモは `memo.md`（日本語）。</sub>
