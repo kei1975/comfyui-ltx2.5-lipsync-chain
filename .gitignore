@@ -1,0 +1,40 @@
+# ---- Python (ComfyUI custom node) ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ---- ComfyUI 実行時に生成されるもの ----
+output/
+temp/
+input/
+*.ckpt
+*.safetensors
+*.pt
+*.pth
+*.bin
+*.gguf
+
+# ---- ログ・一時ファイル ----
+*.log
+*.tmp
+*.bak
+*.orig
+*~
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- エディタ ----
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ---- Claude Code ローカル設定 ----
+.claude/settings.local.json
