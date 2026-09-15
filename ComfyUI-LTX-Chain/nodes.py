@@ -856,7 +856,9 @@ class LTXChainAutoScenes:
     with a fixed set of singing camera angles. `caption` is a lazy input (Florence-2 Run), so on
     cached clips the vision model is never loaded."""
 
-    CAMERAS = [
+    # Two sets of camera templates: with a studio microphone in frame, and without one. Any mention of
+    # "microphone" in the prompt makes LTX add one, so the no-mic set never uses the word at all.
+    CAMERAS_MIC = [
         "Locked medium shot from the waist up, camera level and still, 85mm lens, the microphone in the "
         "right third of the frame. Soft key light on the face, the background gently out of focus. Camera locked.",
         "Close-up of the singer's face and the microphone from a three-quarter angle, 100mm lens, shallow "
@@ -869,6 +871,19 @@ class LTXChainAutoScenes:
         "Low angle from just below the microphone looking slightly up at the singer, 50mm lens, the microphone "
         "and pop filter large in the lower foreground. Camera locked.",
     ]
+    CAMERAS_NOMIC = [
+        "Locked medium shot from the waist up, camera level and still, 85mm lens, the singer slightly off-centre "
+        "in the frame. Soft key light on the face, the background gently out of focus. Camera locked.",
+        "Close-up of the singer's face from a three-quarter angle, 100mm lens, shallow depth of field, the "
+        "background softly blurred, the eyes and expression in crisp focus. Camera locked.",
+        "Medium-full shot, the camera at chest height angled very slightly upward so the singer looks tall and "
+        "elegant, 50mm lens, framed from the head to mid-thigh, standing upright and facing the camera. The framing "
+        "stays exactly the same for the whole shot, camera locked, no zoom and no push-in.",
+        "Profile shot from the side, chest up, 85mm lens, soft backlight outlining the face and hair. Camera locked.",
+        "Low angle from below looking slightly up at the singer, 50mm lens, the face large in the upper part of "
+        "the frame. Camera locked.",
+    ]
+    CAMERAS = CAMERAS_MIC  # backwards-compatible alias
     ACTION_SINGING = ("The singer performs the song into the microphone with precise lip sync to the vocals: the "
                       "mouth shapes match every word, natural jaw and lip movement, breaths between phrases, the mouth "
                       "closed during instrumental passages. Restrained emotion in the eyes and brows, the head moving "
@@ -879,6 +894,142 @@ class LTXChainAutoScenes:
                     "rhythm, the head nodding softly on the beat, breathing calmly, glancing at the microphone while "
                     "waiting for the cue. Single continuous take, photorealistic, crisp focus on the face, steady "
                     "exposure and white balance. Audio: the instrumental of the song with quiet room tone.")
+    ACTION_INTRO_NOMIC = ("The singer is not singing yet: the lips stay closed, listening to the music, swaying gently to "
+                          "the rhythm, the head nodding softly on the beat, breathing calmly, glancing at the camera while "
+                          "waiting for the cue. Single continuous take, photorealistic, crisp focus on the face, steady "
+                          "exposure and white balance. Audio: the instrumental of the song with quiet room tone.")
+    MIC_WORDS = ("microphone", " mic ", " mic,", " mic.", " mics ", "mic stand")
+
+    # gender: detected from the caption, or forced (then the caption's own words are rewritten too,
+    # since Florence sometimes reads a short-haired woman as "a man" and the prompt would fight itself)
+    FEMALE_WORDS = ("woman", "women", "girl", "girls", "female", "lady", "ladies", "she", "her", "hers",
+                    "actress", "schoolgirl", "businesswoman")
+    MALE_WORDS = ("man", "men", "boy", "boys", "male", "gentleman", "gentlemen", "he", "his", "him",
+                  "guy", "guys", "schoolboy", "businessman")
+    TO_FEMALE = {"man": "woman", "men": "women", "boy": "girl", "boys": "girls", "male": "female",
+                 "gentleman": "lady", "gentlemen": "ladies", "he": "she", "his": "her", "him": "her",
+                 "guy": "woman", "guys": "women", "schoolboy": "schoolgirl", "businessman": "businesswoman"}
+    TO_MALE = {"woman": "man", "women": "men", "girl": "boy", "girls": "boys", "female": "male",
+               "lady": "gentleman", "ladies": "gentlemen", "she": "he", "her": "his", "hers": "his",
+               "actress": "actor", "schoolgirl": "schoolboy", "businesswoman": "businessman"}
+
+    # emotion / facial expression of the performance: (while singing, while listening / not singing)
+    EMOTIONS = {
+        "none": ("", ""),
+        "happy": ("a happy, warm mood: bright eyes, a light smile between phrases, cheerful and relaxed",
+                  "a happy, warm expression with a light smile"),
+        "joyful": ("a joyful, radiant mood: eyes lit up, an open smile between phrases, lively and uplifted",
+                   "a joyful, radiant expression, smiling"),
+        "tender": ("a tender, loving mood: soft eyes, a gentle warm expression, intimate and caring",
+                   "a tender, gentle expression with soft eyes"),
+        "sad": ("a sad, sorrowful mood: heavy eyes, the corners of the mouth turned down, brows drawn "
+                "together, holding back tears, never smiling",
+                "a sad, sorrowful expression with heavy eyes, the mouth turned down, not smiling"),
+        "melancholic": ("a melancholic, wistful mood: distant eyes, a faint bittersweet expression, quiet longing, "
+                        "the lips relaxed and unsmiling",
+                        "a melancholic, wistful expression with distant eyes, not smiling"),
+        "nostalgic": ("a nostalgic, reflective mood: a soft faraway look, eyes slightly glazed with memory, a quiet "
+                      "bittersweet expression, the lips relaxed and unsmiling",
+                      "a nostalgic, reflective expression with a faraway look, the lips closed and unsmiling"),
+        "passionate": ("a passionate, intense mood: burning eyes, brows knitting on the strong notes, deeply "
+                       "committed to every word, serious and not smiling",
+                       "a passionate, intense expression with burning eyes, serious"),
+        "serene": ("a serene, peaceful mood: calm relaxed eyes, a tranquil neutral expression, unhurried, "
+                   "the lips relaxed",
+                   "a serene, peaceful expression with calm eyes and relaxed neutral lips"),
+        "playful": ("a playful, flirty mood: sparkling eyes, a mischievous smile, small teasing glances at the camera",
+                    "a playful expression with sparkling eyes and a mischievous smile"),
+        "confident": ("a confident, powerful mood: a direct steady gaze, the chin slightly raised, self-assured",
+                      "a confident expression with a direct steady gaze"),
+        "serious": ("a serious, earnest mood: a composed, focused face, steady sincere eyes, the brows calm, the lips "
+                    "relaxed and unsmiling, dignified and fully concentrated on the song",
+                    "a serious, composed expression with steady focused eyes, not smiling"),
+        "dreamy": ("a dreamy, floating mood: half-lidded eyes, a soft faraway expression, gently lost in the music, "
+                   "the lips relaxed and unsmiling",
+                   "a dreamy expression with half-lidded eyes, lost in the music, not smiling"),
+        "angry": ("an angry, defiant mood: hard eyes, a tightened jaw, furrowed brows, fierce and intense, "
+                  "never smiling",
+                  "an angry, defiant expression with hard eyes and furrowed brows, not smiling"),
+    }
+    # moods where a smile in the image caption must not leak into every shot
+    NO_SMILE = ("sad", "melancholic", "nostalgic", "passionate", "serene", "dreamy", "angry", "serious")
+    NO_SMILE_WORDS = ("sad", "sorrow", "melanchol", "nostalg", "wistful", "angry", "anger", "serious", "grief",
+                      "tear", "cry", "lonely", "somber", "sombre", "gloomy", "solemn", "not smiling", "no smile",
+                      "unsmiling")
+
+    # height / body build: the adjective that goes into the "(a tall, slim 25-year-old Japanese woman)" tag,
+    # plus a short body sentence so full-body angles keep the proportions
+    HEIGHTS = {
+        "none": "",
+        "petite": "petite",
+        "short": "short",
+        "average height": "average-height",
+        "tall": "tall",
+        "very tall": "very tall",
+    }
+    BUILDS = {
+        "none": "",
+        "very slim": "very slim",
+        "slim": "slim",
+        "athletic": "athletic, toned",
+        "average": "average-build",
+        "curvy": "curvy",
+        "chubby": "chubby",
+        "plump": "plump",
+        "heavy": "heavy-set",
+    }
+    # caption words that would contradict a forced height / build (removed from the caption)
+    HEIGHT_WORDS = ("tall", "short", "petite", "towering", "tiny", "diminutive", "statuesque")
+    BUILD_WORDS = ("slim", "slender", "thin", "skinny", "lean", "athletic", "toned", "muscular", "fit", "curvy",
+                   "voluptuous", "chubby", "plump", "overweight", "fat", "heavy", "heavyset", "heavy-set", "stocky",
+                   "stout", "portly", "obese", "full-figured", "plus-size", "petite")
+
+    # how the singer moves: (while singing, while listening, camera note or None)
+    # the camera note replaces "Camera locked." in the built-in angles so the framing doesn't fight the motion
+    MOTIONS = {
+        "none": ("", "", None),
+        "standing still": (
+            "The singer stays standing in exactly the same spot for the whole shot, feet planted, no walking and "
+            "no stepping, the body only breathing and swaying very slightly",
+            "standing in the same spot, feet planted", None),
+        "gentle sway": (
+            "The singer stays in the same spot, swaying gently from side to side with the rhythm, shifting weight "
+            "from foot to foot, no walking",
+            "swaying gently in place with the rhythm", None),
+        "hand gestures": (
+            "The singer stays in the same spot and expresses the song with the hands: flowing, expressive hand and "
+            "arm gestures that follow the lyrics, no walking",
+            "standing in place, the hands moving gently with the music", None),
+        "light dance in place": (
+            "The singer dances lightly in place to the song while singing: small dance steps, hip sway and arm "
+            "movements in time with the beat, staying in the same spot, the face natural and the lips in sync",
+            "moving lightly to the beat in place, small dance steps", None),
+        "dancing": (
+            "The singer dances to the song while singing: the whole body moves with the rhythm, steps, turns and "
+            "arm movements in time with the beat, energetic but graceful, the face natural and the lips in sync",
+            "dancing to the beat, the whole body moving with the rhythm",
+            "Camera locked, the dancing stays within the frame."),
+        "walking toward camera": (
+            "The singer walks slowly and steadily toward the camera while singing, natural relaxed steps, the arms "
+            "swinging lightly",
+            "walking slowly toward the camera with natural relaxed steps",
+            "The camera glides smoothly backward at the same pace as the singer, so the singer stays the same size "
+            "and position in the frame, no zoom."),
+        "walking sideways": (
+            "The singer walks slowly along the scene from one side to the other while singing, natural relaxed steps",
+            "walking slowly across the scene with natural relaxed steps",
+            "The camera tracks sideways smoothly at the same pace, keeping the singer centred and the same size in "
+            "the frame."),
+        "strolling": (
+            "The singer strolls slowly through the scene while singing, natural relaxed steps, looking around "
+            "occasionally and back to the camera",
+            "strolling slowly through the scene with natural relaxed steps",
+            "The camera follows smoothly, keeping the singer the same size in the frame."),
+        "sitting": (
+            "The singer stays seated in the same position for the whole shot, the upper body relaxed, the hands "
+            "resting, no standing up",
+            "seated in the same position, relaxed", None),
+    }
 
     # How strongly the singer performs. LTX tends to over-open the mouth, so the default is toned down.
     PERFORMANCE = {
@@ -894,26 +1045,39 @@ class LTXChainAutoScenes:
                       "gestures, while keeping the face natural",
     }
 
-    def _sing(self, ns, clause):
+    def _sing(self, ns, clause, mic=True, emo="", mot=""):
         common = ("Single continuous take, photorealistic, crisp focus on the face"
                   f"{'s' if ns > 1 else ''}, fine skin and fabric texture, steady exposure and white balance. "
                   "Audio: the vocal performance over the song with quiet room tone.")
+        into = "into the microphone" if mic else "directly to the camera"
+        emo = f" The performance carries {emo}." if emo else ""
+        if mot and ns > 1:
+            mot = mot.replace("The singer stays", "The singers stay").replace("The singer walks", "The singers walk") \
+                     .replace("The singer strolls", "The singers stroll").replace("The singer dances", "The singers dance")
+        emo = emo + (f" {mot}." if mot else "")
         if ns == 1:
-            return ("The singer performs the song into the microphone with precise lip sync to the vocals: the mouth "
+            return (f"The singer performs the song {into} with precise lip sync to the vocals: the mouth "
                     "shapes match every word, breaths between phrases, the mouth closed during instrumental passages. "
-                    f"{clause}. " + common)
+                    f"{clause}.{emo} " + common)
         who = "The two singers" if ns == 2 else f"The {self._num_word(ns)} singers"
         together = ("trade lines and harmonise" if ns == 2 else "sing together as an ensemble")
         return (f"{who} perform the song together and {together}: each one lip-syncs their own part with precise timing "
                 "to the vocals, mouths matching every word, breaths between phrases, mouths closed during instrumental "
-                f"passages. {clause}. " + common)
+                f"passages. {clause}.{emo} " + common)
 
-    def _intro(self, ns):
+    def _intro(self, ns, mic=True, emo="", mot=""):
+        at = "at the microphone" if mic else "at the camera"
+        mot = f" Movement: {mot}." if mot else ""
         if ns == 1:
-            return self.ACTION_INTRO
+            emo = (f" The face keeps {emo}." if emo else "") + mot
+            return ("The singer is not singing yet: the lips stay closed, listening to the music, swaying gently to the "
+                    f"rhythm, the head nodding softly on the beat, breathing calmly, glancing {at} while "
+                    f"waiting for the cue.{emo} Single continuous take, photorealistic, crisp focus on the face, steady "
+                    "exposure and white balance. Audio: the instrumental of the song with quiet room tone.")
         who = "The two singers" if ns == 2 else f"The {self._num_word(ns)} singers"
+        emo = (f" Their faces keep {emo}." if emo else "") + mot
         return (f"{who} are not singing yet: lips closed, listening to the music, swaying gently to the rhythm, heads "
-                "nodding softly on the beat, glancing at each other and at the microphone while waiting for the cue. "
+                f"nodding softly on the beat, glancing at each other and {at} while waiting for the cue.{emo} "
                 "Single continuous take, photorealistic, steady exposure. Audio: the instrumental of the song.")
 
     @classmethod
@@ -937,6 +1101,24 @@ class LTXChainAutoScenes:
                                      "tooltip": "全シーン共通で足したい雰囲気（照明・質感など）。※全シーンに付くので、カメラアングルはここに書かない"}),
                 "extra_cameras": ("STRING", {"multiline": True, "default": "",
                                              "tooltip": "任意。自分で足したいカメラアングルを1行に1つ（例: profile shot from the side, 85mm, the microphone between her and the camera）。ここに書いた分がシーンのローテーションに追加され、時々そのアングルになります。空なら既定の雛形だけ"}),
+                "microphone": (["auto", "yes", "no"], {"default": "auto",
+                               "tooltip": "マイクをプロンプトに入れるか。auto=画像解析（Florence）の説明にマイクがあれば入れる、無ければ入れない / yes=常にスタジオマイクの前で歌う / no=マイク無し（カメラに向かって歌う）。以前は常にマイク入りだったので、画像に無いマイクが勝手に足される場合は no または auto に"}),
+                "gender": (["auto", "female", "male"], {"default": "auto",
+                           "tooltip": "歌い手の性別。auto=画像解析（Florence）の説明から判定（woman/girl/she → female、man/boy/he → male）。female / male を指定すると人物説明に明記し、Florence の説明文にある性別の語も書き換えます（短髪の女性が man と読まれた時などの修正用）"}),
+                "emotion": (["none", "happy", "joyful", "tender", "sad", "melancholic", "nostalgic", "passionate",
+                             "serene", "playful", "confident", "serious", "dreamy", "angry"], {"default": "none",
+                            "tooltip": "歌っている時の感情・表情。none=指定なし（performance の強さだけ）/ happy=幸せ / joyful=喜び / tender=優しい / sad=悲しい / melancholic=憂い / nostalgic=懐かしむ / passionate=情熱的 / serene=穏やか / playful=茶目っ気 / confident=自信 / serious=真面目・真剣 / dreamy=夢見心地 / angry=怒り。歌唱中と歌っていない区間（間奏）の表情の両方に反映。sad〜angry の非笑顔系では写真説明の smile 語も自動除去。下の emotion_custom に書くとそちらが優先"}),
+                "emotion_custom": ("STRING", {"default": "",
+                                   "tooltip": "任意。感情・表情を自由記述（英語推奨。例: a shy, bashful mood with a small nervous smile）。空なら上の emotion を使用"}),
+                "motion": (["none", "standing still", "gentle sway", "hand gestures", "light dance in place", "dancing",
+                            "walking toward camera", "walking sideways", "strolling", "sitting"], {"default": "none",
+                           "tooltip": "人物の動き。none=指定なし / standing still=その場に立ったまま / gentle sway=その場で軽く揺れる / hand gestures=その場で手振り / light dance in place=その場で軽く踊る / dancing=踊る / walking toward camera=カメラに向かって歩く（カメラは後退追従） / walking sideways=横に歩く（カメラ横追従） / strolling=散歩（カメラ追従） / sitting=座ったまま。歩く・踊る時は microphone=no 推奨。下の motion_custom に書くとそちらが優先"}),
+                "motion_custom": ("STRING", {"default": "",
+                                  "tooltip": "任意。動きを自由記述（英語推奨。例: The singer slowly turns around and walks away from the camera）。空なら上の motion を使用"}),
+                "height": (["none", "petite", "short", "average height", "tall", "very tall"], {"default": "none",
+                           "tooltip": "背の高さ。none=指定なし（写真のまま）/ petite=小柄 / short=低め / average height=平均 / tall=高い / very tall=とても高い。指定すると人物説明に明記し、写真説明にある背の語（tall/short 等）は除去。膝上・全身の構図で効きます"}),
+                "build": (["none", "very slim", "slim", "athletic", "average", "curvy", "chubby", "plump", "heavy"], {"default": "none",
+                          "tooltip": "体型。none=指定なし（写真のまま）/ very slim=とても痩せている / slim=痩せている / athletic=引き締まった / average=普通 / curvy=グラマー / chubby=ぽっちゃり / plump=太め / heavy=太っている。指定すると人物説明に明記し、写真説明にある体型の語（slim/plump 等）は除去。全シーンで体型を固定する文も追加"}),
             },
             "optional": {
                 "chain": (CHAIN_TYPE, {"tooltip": "任意。ログ用"}),
@@ -958,10 +1140,10 @@ class LTXChainAutoScenes:
         return ["", "", "two", "three", "four", "five", "six", "seven", "eight"][n] if 0 <= n <= 8 else str(n)
 
     @classmethod
-    def _cache_path(cls, image, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras=""):
+    def _cache_path(cls, image, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none"):
         d = os.path.join(_chains_root(), "_autoprompt")
         os.makedirs(d, exist_ok=True)
-        key = f'{style}|n{num_singers}|e{ethnicity}|p{performance}|a{age}|c{extra_cameras}'
+        key = f'{style}|n{num_singers}|e{ethnicity}|p{performance}|a{age}|c{extra_cameras}|m{microphone}|g{gender}|x{emotion}|xc{emotion_custom}|v{motion}|vc{motion_custom}|h{height}|b{build}'
         return os.path.join(d, f"scenes_{cls._key(image, num_scenes, key)}.json")
 
     @staticmethod
@@ -993,13 +1175,113 @@ class LTXChainAutoScenes:
         t = t.rstrip(". ").strip()
         return t[0].lower() + t[1:] if t else t
 
-    def check_lazy_status(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", chain=None):
-        if os.path.isfile(self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras)):
+    def check_lazy_status(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", chain=None):
+        if os.path.isfile(self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build)):
             return []
         return ["caption"]
 
-    def _build(self, image, num_scenes, style, caption, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras=""):
+    @staticmethod
+    def _strip_words(desc, words):
+        """Drop contradicting adjectives from the caption ("a slim woman" -> "a woman")."""
+        pat = r",?\s*\b(?:" + "|".join(re.escape(w) for w in words) + r")\b(?:\s+and\s+(?=\w))?,?\s*"
+        t = re.sub(pat, " ", desc, flags=re.I)
+        t = re.sub(r"\s{2,}", " ", t); t = re.sub(r"\s+,", ",", t); t = re.sub(r",\s*,", ",", t)
+        t = re.sub(r"\ba\s+(?=[aeiouAEIOU])", "an ", t); t = re.sub(r"\ban\s+(?=[^aeiouAEIOU\W])", "a ", t)
+        return t.strip().rstrip(",")
+
+    @classmethod
+    def _detect_gender(cls, desc):
+        """'female' / 'male' / '' from the caption: whichever gendered word appears first wins."""
+        words = re.findall(r"[a-z]+", desc.lower())
+        for w in words:
+            if w in cls.FEMALE_WORDS:
+                return "female"
+            if w in cls.MALE_WORDS:
+                return "male"
+        return ""
+
+    @classmethod
+    def _force_gender(cls, desc, gender):
+        """Rewrite the caption's gendered words so it agrees with the forced gender."""
+        table = cls.TO_FEMALE if gender == "female" else cls.TO_MALE
+        def sub(m):
+            w = m.group(0); r = table.get(w.lower())
+            if r is None:
+                return w
+            return r.capitalize() if w[:1].isupper() else r
+        return re.sub(r"[A-Za-z]+", sub, desc)
+
+    @classmethod
+    def _emotion(cls, emotion, emotion_custom):
+        """(singing clause, listening clause) for the chosen emotion; custom text wins."""
+        c = " ".join((emotion_custom or "").split()).strip().rstrip(".")
+        if c:
+            return c, c
+        return cls.EMOTIONS.get(emotion, cls.EMOTIONS["none"])
+
+    @classmethod
+    def _no_smile(cls, emotion, emotion_custom):
+        c = (emotion_custom or "").strip().lower()
+        if c:
+            return any(w in c for w in cls.NO_SMILE_WORDS)
+        return emotion in cls.NO_SMILE
+
+    @staticmethod
+    def _strip_smile(desc):
+        """Remove 'smiling' / 'with a big smile' from the caption: the character block is repeated in every
+        shot, so a smile written there beats any sad/nostalgic mood asked for in the action."""
+        t = desc
+        t = re.sub(r",\s*(?:smiling|laughing|grinning|beaming)\s+and\s+", ", ", t, flags=re.I)  # ", laughing and holding"
+        t = re.sub(r",?\s*(?:and\s+|while\s+)?(?:is\s+|are\s+)?(?:smiling|laughing|grinning|beaming)"
+                   r"(?:\s+(?:broadly|widely|brightly|warmly|happily|softly|gently|cheerfully))?"
+                   r"(?:\s+(?:at|into|toward|towards)\s+the\s+(?:camera|viewer))?", "", t, flags=re.I)
+        t = re.sub(r",?\s*(?:and\s+)?(?:with|has|have|wears|wearing|flashing|showing)\s+(?:a|an)?\s*(?:\w+\s+){0,2}"
+                   r"(?:smile|grin)(?:\s+on\s+(?:her|his|their)\s+face)?", "", t, flags=re.I)
+        t = re.sub(r"\b(?:smiling|grinning|laughing|beaming)\s+", "", t, flags=re.I)  # "a smiling woman"
+        # sentences that were only about the smile ("She is ." / "She ." / "Her smile ...")
+        t = re.sub(r"(?:^|(?<=\.\s))(?:She|He|They|Her|His|Their)\s*(?:is|are)?\s*\.\s*", "", t)
+        t = re.sub(r"(?:^|\.\s*)(?:She|He|They|Her|His|Their)\s*(?:is|are)?\s*$", "", t)  # caption already lost its final "."
+        t = re.sub(r"(?:^|(?<=\.\s))(?:Her|His|Their)\s+(?:smile|grin)[^.]*\.\s*", "", t, flags=re.I)
+        t = re.sub(r"\s+,", ",", t); t = re.sub(r",\s*,", ",", t); t = re.sub(r"\s{2,}", " ", t)
+        t = re.sub(r",\s*\.", ".", t).strip().rstrip(",")
+        return t
+
+    @classmethod
+    def _motion(cls, motion, motion_custom):
+        """(singing clause, listening clause, camera note) for the chosen motion; custom text wins."""
+        c = " ".join((motion_custom or "").split()).strip().rstrip(".")
+        if c:
+            return c, c, None
+        return cls.MOTIONS.get(motion, cls.MOTIONS["none"])
+
+    @classmethod
+    def _wants_mic(cls, microphone, desc):
+        """yes/no are explicit; auto = only when the image caption actually mentions a microphone."""
+        if microphone == "yes":
+            return True
+        if microphone == "no":
+            return False
+        low = f" {desc.lower()} "
+        return any(w in low for w in cls.MIC_WORDS)
+
+    def _build(self, image, num_scenes, style, caption, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none"):
         desc = self._clean_caption(caption)
+        mic = self._wants_mic(microphone, desc)
+        hgt = self.HEIGHTS.get(height, "")
+        bld = self.BUILDS.get(build, "")
+        if hgt:
+            desc = self._strip_words(desc, self.HEIGHT_WORDS)
+        if bld:
+            desc = self._strip_words(desc, self.BUILD_WORDS)
+        if self._no_smile(emotion, emotion_custom):
+            desc = self._strip_smile(desc)
+        mot_sing, mot_listen, cam_note = self._motion(motion, motion_custom)
+        if gender in ("female", "male"):
+            desc = self._force_gender(desc, gender)
+            g = gender
+        else:
+            g = self._detect_gender(desc)
+        emo_sing, emo_listen = self._emotion(emotion, emotion_custom)
         ns = max(1, int(num_singers))
         eth = ethnicity.strip()
         agep = self._age_phrase(age)
@@ -1012,44 +1294,71 @@ class LTXChainAutoScenes:
         # makes the model add glasses to a person who has none
         has_eyewear = any(w in desc.lower() for w in ("glass", "eyewear", "sunglass", "spectacle", "goggle"))
         feat = "face, hair, glasses, clothing" if has_eyewear else "face, hair, clothing"
+        # "(a 25-year-old Japanese woman)" — the noun follows the gender; only written out when
+        # the user forced a gender or gave age/ethnicity, so an unlabelled caption stays untouched
+        noun = {"female": "woman", "male": "man"}.get(g, "person")
+        gtag = g if gender in ("female", "male") else ""
+        body = ", ".join(x for x in (hgt, bld) if x)  # "tall, slim"
+        body = (body + " ") if body else ""
+        # keep the proportions from drifting across the video (full-body angles especially)
+        if hgt or bld:
+            what = " and ".join(x for x in ("height" if hgt else "", "body shape" if bld else "") if x)
+            verb = "stay" if (hgt and bld) else "stays"
+            body_lock = (f" The singer's {what} {verb} exactly the same in every shot." if ns == 1
+                         else f" Their {what} {verb} exactly the same in every shot.")
+        else:
+            body_lock = ""
         if ns == 1:
-            who = " ".join(x for x in (agep, eth) if x)
-            tag = f" ({art(who)} {who} person)" if who else ""
+            who = body + " ".join(x for x in (agep, eth) if x)
+            who = who.strip()
+            tag = f" ({art(who or noun)} {who + ' ' if who else ''}{noun})" if (who or gtag) else ""
             character = (f"Image 1 is the singer{tag}: {desc}. The singer's {feat} and the "
-                         f"setting stay exactly the same as in the reference image in every shot.{age_lock}")
+                         f"setting stay exactly the same as in the reference image in every shot.{age_lock}{body_lock}")
         else:
             word = self._num_word(ns)
-            pre = " ".join(x for x in (agep, eth) if x)
+            pre = body + " ".join(x for x in (agep, eth, gtag) if x)
+            pre = pre.strip()
             pre = (pre + " ") if pre else ""
             group = f"{art(pre)} {pre}duet" if ns == 2 else f"a group of {word} {pre}singers"
             allof = "Both of them" if ns == 2 else f"All {word} of them"
             character = (f"Image 1 shows the {word} singers ({group}): {desc}. {allof} appear together "
                          f"in every shot; their faces, hair, clothing and the setting stay exactly the same as in "
-                         f"the reference image.{age_lock}")
-        act_sing = self._sing(ns, clause)
-        act_intro = self._intro(ns)
+                         f"the reference image.{age_lock}{body_lock}")
+        act_sing = self._sing(ns, clause, mic, emo_sing, mot_sing)
+        act_intro = self._intro(ns, mic, emo_listen, mot_listen)
         tail = ("\n\n" + style.strip()) if style.strip() else ""
         # camera rotation = the first `num_scenes` built-in angles + any custom angles the user added
         extras = [ln.strip() for ln in (extra_cameras or "").replace("\r", "").split("\n") if ln.strip()]
-        cams = list(self.CAMERAS[:max(1, int(num_scenes))]) + extras
+        base = self.CAMERAS_MIC if mic else self.CAMERAS_NOMIC
+        cams = list(base[:max(1, int(num_scenes))]) + extras
+        if cam_note:  # a moving singer needs a following camera, not a locked one
+            cams = [c.replace("The framing stays exactly the same for the whole shot, camera locked, no zoom and "
+                              "no push-in.", cam_note).replace("Camera locked.", cam_note) for c in cams]
+        if motion == "sitting" and not (motion_custom or "").strip():
+            cams = [c.replace("standing upright", "seated") for c in cams]
         if ns > 1:  # phrase every angle for more than one person
             cams = [c.replace("the singer's", "the singers'").replace("the singer ", "the singers ")
                      .replace("at the singer", "at the singers").replace("the singer,", "the singers,")
                     for c in cams]
         scenes = [character + "\n\n" + c + tail for c in cams]
         return {"character": character, "scenes": "\n---\n".join(scenes),
-                "action_singing": act_sing, "action_intro": act_intro}
+                "action_singing": act_sing, "action_intro": act_intro, "microphone": bool(mic),
+                "gender": g or "unknown", "emotion": (emotion_custom.strip() or emotion),
+                "motion": (motion_custom.strip() or motion), "height": height, "build": build}
 
-    def run(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", chain=None):
-        path = self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras)
+    def run(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", chain=None):
+        path = self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build)
         clip = (chain.get("index", 0) + 1) if chain else 1
         if os.path.isfile(path):
             data = json.load(open(path, encoding="utf-8"))
             logging.info(f"[LTX Chain] clip {clip}: using cached auto-scenes {os.path.basename(path)}")
         else:
-            data = self._build(image, num_scenes, style, caption or "", num_singers, ethnicity, performance, age, extra_cameras)
+            data = self._build(image, num_scenes, style, caption or "", num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build)
             json.dump(data, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-            logging.info(f"[LTX Chain] clip {clip}: analysed image -> auto-scenes cached ({os.path.basename(path)})")
+            logging.info(f"[LTX Chain] clip {clip}: analysed image -> auto-scenes cached ({os.path.basename(path)}), "
+                         f"microphone={microphone} -> {'in frame' if data.get('microphone') else 'none'}, "
+                         f"gender={gender} -> {data.get('gender')}, emotion={data.get('emotion')}, motion={data.get('motion')}, "
+                         f"height={height}, build={build}")
             logging.info(f"[LTX Chain] character: {data['character']}")
             import gc
             import comfy.model_management as mm

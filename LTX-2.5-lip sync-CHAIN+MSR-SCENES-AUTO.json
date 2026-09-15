@@ -10139,7 +10139,15 @@
         "16",
         "restrained",
         "photorealistic, cinematic, natural film-like color",
-        "profile shot from the side, 85mm, the microphone between her and the camera\nover-the-shoulder shot from behind, 50mm\n"
+        "profile shot from the side, 85mm\nover-the-shoulder shot from behind, 50mm\n",
+        "auto",
+        "auto",
+        "none",
+        "",
+        "none",
+        "",
+        "none",
+        "none"
       ],
       "widgets_values_named": {
         "num_scenes": 4,
@@ -10148,7 +10156,15 @@
         "age": "16",
         "performance": "restrained",
         "style": "photorealistic, cinematic, natural film-like color",
-        "extra_cameras": "profile shot from the side, 85mm, the microphone between her and the camera\nover-the-shoulder shot from behind, 50mm\n"
+        "extra_cameras": "profile shot from the side, 85mm\nover-the-shoulder shot from behind, 50mm\n",
+        "microphone": "auto",
+        "gender": "auto",
+        "emotion": "none",
+        "emotion_custom": "",
+        "motion": "none",
+        "motion_custom": "",
+        "height": "none",
+        "build": "none"
       },
       "color": "#2a3f2a",
       "bgcolor": "#38513a"

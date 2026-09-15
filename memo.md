@@ -197,6 +197,30 @@ State に `resolution` を追加。LTX-2.5 が安全に出せる 64 の倍数プ
   全ワークフローのネガティブに `exaggerated facial expression, wide open mouth, over-acting, grimacing, screaming, ...` を追加。
   ただし大きなロングトーンでは正しいリップシンクとして口が開く（完全に潰すと口パクずれに見える）。さらに抑えるなら subtle +
   顔アップシーンを減らす。これらはキャッシュキーに含まれるので変更で自動再生成
+- `microphone`（auto / yes / no、既定 auto）: 以前はカメラ雛形と action 文のすべてに microphone がハードコードされていて、
+  写真に無いマイクが必ず足されていた。`CAMERAS_MIC` / `CAMERAS_NOMIC` の2セット + `ACTION_INTRO_NOMIC` を用意し、
+  auto は Florence の caption に microphone/mic の語があるかで判定（`_wants_mic`）。no のときは「microphone」という語を
+  一切プロンプトに出さない（語があるだけで LTX が足す）。キャッシュキーに含む。AUTO ワークフローの extra_cameras 例からも
+  「the microphone between her and the camera」を外した
+- `gender`（auto / female / male、既定 auto）: auto は caption の最初の性別語（woman/girl/she… / man/boy/he…）で判定（`_detect_gender`）。
+  female/male を指定すると人物タグに woman/man を明記し、caption 内の性別語も `TO_FEMALE`/`TO_MALE` で書き換える
+  （`_force_gender`。Florence が短髪女性を man と読んだ時にプロンプト内で矛盾しないように）
+- `emotion`（none + 12 プリセット: happy/joyful/tender/sad/melancholic/nostalgic/passionate/serene/playful/confident/dreamy/angry）
+  + `emotion_custom`（自由記述、非空なら優先）: `EMOTIONS` は (歌唱中の文, 非歌唱区間の文) のペア。歌唱中は performance 句の後に
+  「The performance carries …」、intro は「The face keeps …」として挿入。これらもキャッシュキーに含む。
+  新規入力は widgets_values の位置ずれを避けるため既存入力の後ろ（extra_cameras の下）に追加する方針
+- nostalgic を選んでも笑顔が多い問題: (1) プリセット文自体に「a faint bittersweet smile」があった → 非笑顔系 7 種
+  （`NO_SMILE`: sad/melancholic/nostalgic/passionate/serene/dreamy/angry/serious。serious=真面目 は後から追加）は smile 語を消し「unsmiling / not smiling」を明記。
+  (2) Florence の caption の「She is smiling」が人物ブロックとして全シーンに繰り返されるのが主因 → 非笑顔系のときは
+  `_strip_smile` で caption から smiling/laughing/with a big smile 等を正規表現で除去（custom は `NO_SMILE_WORDS` を含むとき）
+- `motion`（none / standing still / gentle sway / hand gestures / light dance in place / dancing / walking toward camera /
+  walking sideways / strolling / sitting）+ `motion_custom`: `MOTIONS` は (歌唱中, 非歌唱, カメラ注記) の3組。カメラ注記がある
+  動き（歩く・踊る）では雛形の「Camera locked.」を追従カメラ文に置換（固定カメラと矛盾させない）。sitting は「standing upright」
+  →「seated」。歩く/踊るときは microphone=no 推奨（マイクスタンドと矛盾）
+- `height`（none / petite / short / average height / tall / very tall）と `build`（none / very slim / slim / athletic / average /
+  curvy / chubby / plump / heavy）: 人物タグの形容詞として「(a tall, slim 25-year-old Japanese woman)」の形で入れ、
+  「The singer's height and body shape stay exactly the same in every shot.」を追加。指定時は caption 内の矛盾する語
+  （`HEIGHT_WORDS` / `BUILD_WORDS`: tall/short/slim/plump…）を `_strip_words` で除去。キャッシュキーに含む
 
 ## 9. このフォルダの中身（Video-Sticher プロジェクト内のバックアップ）
 
