@@ -38,7 +38,7 @@ Preview below is compressed to **480p**. Sample files are in [`videos/`](videos/
 - **Scene / camera changes** — switch angle every N clips (`clips_per_scene`) or at exact times you mark on the audio waveform (`scene_cuts`).
 - **Waveform cut editor** — a built‑in node draws the song's waveform; click to place scene‑change lines, drag/delete, preview audio, and even **auto‑detect** cuts from tempo & song structure.
 - **Scene cross‑fade** — scene changes dissolve instead of hard‑cutting, without breaking length or lip‑sync.
-- **Auto prompt from the image** — Florence‑2 reads the input photo (appearance, outfit, setting) and writes the whole singing prompt for you. Optional fields for **nationality/ethnicity, age, number of singers, performance intensity, custom camera angles, whether a microphone is in frame** (`microphone = auto/yes/no`), **gender** (`auto/female/male`) **the emotion/expression of the performance** (`emotion` presets or free text) **how the singer moves** (`motion`: standing still / dancing / walking toward camera … or free text), **height and body build** (`height`, `build`).
+- **Auto prompt from the image** — Florence‑2 reads the input photo (appearance, outfit, setting) and writes the whole singing prompt for you. Optional fields for **nationality/ethnicity, age, number of singers, performance intensity, custom camera angles, whether a microphone is in frame** (`microphone = auto/yes/no`), **gender** (`auto/female/male`) **the emotion/expression of the performance** (`emotion` presets or free text) **how the singer moves** (`motion`: standing still / dancing / walking toward camera … or free text), **height and body build** (`height`, `build`) **and camera movement** (`camera`: push‑in / dolly / orbit / handheld / mix per scene … or free text).
 - **Sing / don't‑sing detection** — vocals are separated (MelBandRoFormer); clips with little singing automatically use a "not singing" prompt so the mouth stays closed during instrumentals.
 - **Redo single clips** — regenerate just the clips you don't like (`redo_clips`), keeping the seams continuous; old clips are archived.
 - **Smooth seams & no drift** — per‑frame colour normalisation, deterministic sizing (no zoom creep), and a hand‑off/dissolve at every join.
@@ -50,7 +50,7 @@ Preview below is compressed to **480p**. Sample files are in [`videos/`](videos/
 - **シーン / カメラ切替** — N クリップごと（`clips_per_scene`）、または波形上で指定した秒（`scene_cuts`）で切り替え。
 - **波形カットエディタ** — 曲の波形を描くノードを内蔵。クリックで切替線を配置、移動/削除、音の試聴、テンポと曲構成からの **自動カット** も可能。
 - **シーンのクロスフェード** — 切替をハードカットではなくディゾルブに。長さもリップシンクも崩しません。
-- **画像からプロンプト自動生成** — Florence‑2 が入力画像（見た目・服・場所）を読み取り、歌もの用プロンプトを自動作成。**国籍・年齢・人数・歌い方の強さ・カメラアングル追加・マイクの有無**（`microphone = auto/yes/no`）・**性別**（`auto/female/male`）・**感情/表情**（`emotion` プリセット or 自由記述）・**動き**（`motion`: その場に立つ / 踊る / カメラに向かって歩く … or 自由記述）・**身長・体型**（`height` / `build`）も任意指定可。
+- **画像からプロンプト自動生成** — Florence‑2 が入力画像（見た目・服・場所）を読み取り、歌もの用プロンプトを自動作成。**国籍・年齢・人数・歌い方の強さ・カメラアングル追加・マイクの有無**（`microphone = auto/yes/no`）・**性別**（`auto/female/male`）・**感情/表情**（`emotion` プリセット or 自由記述）・**動き**（`motion`: その場に立つ / 踊る / カメラに向かって歩く … or 自由記述）・**身長・体型**（`height` / `build`）・**カメラワーク**（`camera`: 寄る / 横スライド / オービット / 手持ち / シーンごとに変える … or 自由記述）も任意指定可。
 - **歌う/歌わないの自動判定** — 歌声を分離（MelBandRoFormer）し、歌の少ないクリップは自動で「歌わない」プロンプトに（間奏で口を閉じる）。
 - **クリップ単位のやり直し** — 気に入らないクリップだけ再生成（`redo_clips`）。継ぎ目は連続、旧クリップは退避。
 - **継ぎ目の滑らかさ・ドリフト対策** — 毎フレームの色正規化、確定的サイズ決定（ズームずれ無し）、各継ぎ目の受け渡し＋ディゾルブ。
@@ -138,9 +138,9 @@ Each workflow puts the controls you touch in a green **"① Inputs & Settings"**
 
 ![ComfyUI screenshot — the custom nodes in the AUTO workflow](docs/workflow-screenshot.png)
 
-The custom nodes in ComfyUI: **LTX Chain: State** (all the settings), **Scene Cuts** (waveform with scene‑change lines), **Scene Prompt**, **Florence‑2** (image analysis) and **Auto Scenes** (image → prompt, with `num_singers` / `ethnicity` / `age` / `performance` / `microphone` / `gender` / `emotion` / `motion` / `height` / `build`).
+The custom nodes in ComfyUI: **LTX Chain: State** (all the settings), **Scene Cuts** (waveform with scene‑change lines), **Scene Prompt**, **Florence‑2** (image analysis) and **Auto Scenes** (image → prompt, with `num_singers` / `ethnicity` / `age` / `performance` / `microphone` / `gender` / `emotion` / `motion` / `height` / `build` / `camera`).
 
-ComfyUI 上のカスタムノード：**LTX Chain: State**（各種設定）、**Scene Cuts**（波形＋シーン切替線）、**Scene Prompt**、**Florence‑2**（画像解析）、**Auto Scenes**（画像→プロンプト、`num_singers`/`ethnicity`/`age`/`performance`/`microphone`/`gender`/`emotion`/`motion`/`height`/`build`）。
+ComfyUI 上のカスタムノード：**LTX Chain: State**（各種設定）、**Scene Cuts**（波形＋シーン切替線）、**Scene Prompt**、**Florence‑2**（画像解析）、**Auto Scenes**（画像→プロンプト、`num_singers`/`ethnicity`/`age`/`performance`/`microphone`/`gender`/`emotion`/`motion`/`height`/`build`/`camera`）。
 
 ### Simplified node map / 簡易ノード配置図
 
@@ -158,8 +158,8 @@ The controls you touch are grouped in the green **"① Inputs & Settings"** pane
    `...SCENES-AUTO` を開き、左パネルで **写真** と **曲** をセット。
 2. In **LTX Chain: State** set `chunk_seconds = 10`, `clips_per_scene = 2`. **Test with `length_mode = seconds` (e.g. `length_seconds = 15`) first**, then switch to `length_mode = all` for the whole song once the look is right.
    **State** で `chunk_seconds = 10` / `clips_per_scene = 2`。**まず `length_mode = seconds`（例 `length_seconds = 15`）で短くテスト**し、良ければ `length_mode = all`（曲の最後まで）に切替。
-3. *(optional)* In **Auto Scenes** set `ethnicity`, `age`, `num_singers`, `performance`, `microphone` (`auto` = only if the photo shows one), `gender` (`auto` = read from the photo), `emotion` (happy / sad / passionate … or free text in `emotion_custom`), `motion` (standing still / dancing / walking toward camera … or free text in `motion_custom`), `height` (petite … very tall), `build` (very slim … heavy), or add `extra_cameras`.
-   *(任意)* **Auto Scenes** で `ethnicity`/`age`/`num_singers`/`performance`/`microphone`（`auto`=写真にマイクがある時だけ入れる）/`gender`（`auto`=写真から判定）/`emotion`（happy / sad / passionate … または `emotion_custom` に自由記述）/`motion`（その場に立つ / 踊る / カメラに向かって歩く … または `motion_custom` に自由記述）/`height`（小柄〜とても高い）/`build`（とても痩せている〜太っている）や `extra_cameras` を指定。
+3. *(optional)* In **Auto Scenes** set `ethnicity`, `age`, `num_singers`, `performance`, `microphone` (`auto` = only if the photo shows one), `gender` (`auto` = read from the photo), `emotion` (happy / sad / passionate … or free text in `emotion_custom`), `motion` (standing still / dancing / walking toward camera … or free text in `motion_custom`), `height` (petite … very tall), `build` (very slim … heavy), `camera` (locked / slow push‑in / dolly / orbit / crane / handheld / mix … or free text in `camera_custom`), or add `extra_cameras`.
+   *(任意)* **Auto Scenes** で `ethnicity`/`age`/`num_singers`/`performance`/`microphone`（`auto`=写真にマイクがある時だけ入れる）/`gender`（`auto`=写真から判定）/`emotion`（happy / sad / passionate … または `emotion_custom` に自由記述）/`motion`（その場に立つ / 踊る / カメラに向かって歩く … または `motion_custom` に自由記述）/`height`（小柄〜とても高い）/`build`（とても痩せている〜太っている）/`camera`（固定 / ゆっくり寄る / 横スライド / オービット / クレーン / 手持ち / シーンごとに変える … または `camera_custom` に自由記述）や `extra_cameras` を指定。
 4. Press **Run** once. Clips and `final.mp4` land in `ComfyUI/output/LTX2.5Chains/<date>_vNN/`.
    **Run** を1回。クリップと `final.mp4` は `output/LTX2.5Chains/<日付>_vNN/` に。
 
@@ -184,7 +184,7 @@ To place scene changes on the beat, use the **Scene Cuts** node's waveform (clic
 | **LTX Chain: Step** | Saves the clip, colour‑normalises, cross‑fades seams, re‑queues, and builds `final.mp4`. / 保存・色正規化・継ぎ目・再投入・連結 |
 | **LTX Chain: Scene Cuts (waveform)** | Waveform editor for scene‑change times; manual + auto‑cut (tempo/structure). / 波形で切替位置を指定（手動＋自動） |
 | **LTX Chain: Scene Prompt** | Per‑scene camera text + sing/intro action (vocal‑aware). / シーン別カメラ＋歌う/歌わない |
-| **LTX Chain: Auto Scenes** | Florence‑2 caption → full singing prompt; ethnicity/age/singers/performance/extra cameras/microphone/gender/emotion/motion/height/build. / 画像→プロンプト自動生成 |
+| **LTX Chain: Auto Scenes** | Florence‑2 caption → full singing prompt; ethnicity/age/singers/performance/extra cameras/microphone/gender/emotion/motion/height/build/camera. / 画像→プロンプト自動生成 |
 
 Key State parameters / 主な State 設定: `chunk_seconds` (per‑clip length 1クリップ秒数), `length_mode` (`all`/`seconds`), `clips_per_scene`, `scene_cuts`, `msr_clips` (`stage2_all` recommended), `scene_crossfade`, `overlap_frames`, `handoff_color_match`, `seed`, `redo_session` / `redo_clips`.
 
@@ -197,6 +197,8 @@ Standalone tool / 単体ツール: `wave-cutter.html` — the same waveform cut 
 - **Over‑acting** — LTX tends to open the mouth wide on loud notes. Use `performance = subtle`/`restrained` and prefer wider framings; big sustained notes will still open the mouth (that is correct lip‑sync). / 大げさ→ `performance` を下げ、寄りを減らす。大きなロングトーンでは口が開くのは正しい挙動。
 - **A microphone appears that isn't in the photo** — the prompt used to always mention one. Set `microphone = no` in Auto Scenes (or leave `auto`, which only adds it when Florence‑2 sees one in the photo) and remove the word from `extra_cameras`. / 写真に無いマイクが出る→ Auto Scenes の `microphone` を `no`（`auto` は写真にマイクがある時だけ入れる）。`extra_cameras` からも microphone の語を外す。
 - **Still smiling with a sad / nostalgic `emotion`** — the smile usually comes from the photo caption ("she is smiling"), which is repeated in every shot. For the non-happy moods the node now strips smile words from the caption and adds "unsmiling"; if it persists, use a non-smiling start photo. / 悲しい系の emotion でも笑う→ 写真の説明文の smile が原因。非笑顔系では自動で除去＋「unsmiling」を追加。それでも残るなら笑っていない写真を使う。
+- **A walking `motion` restarts from a standstill at every scene change** — the first clip of a scene is generated from the still reference photo, not from the previous frames (the angle changes). The moving presets now say "already mid‑stride at the very first frame"; if it still pauses, use fewer scene changes. / 歩く motion がシーン切替ごとに止まってから歩き出す→ シーン先頭クリップは静止写真から生成されるため。プリセットに「最初のフレームから歩行中」を明記済み。残る場合はシーン切替を減らす。
+- **`camera` push‑in / pull‑out / crane keep going across the clips of one scene** (each clip continues from the last frames), so keep `clips_per_scene` small with those or use `mix`. / 寄る・引く・クレーンは同一シーン内で蓄積するので clips_per_scene を小さく、または mix。
 - **Angles come from the prompt, not the reference images.** MSR references only lock identity. Add camera angles in Scene Prompt / `extra_cameras`. / アングルは REF ではなくプロンプトで決まる。
 - **Long runs may drift** — set `age`/`ethnicity` to stop the face aging; use matching, same‑person reference images. / 長尺のドリフトは `age`/`ethnicity` と参照画像で抑制。
 - **Scenes ≠ clips** — each scene region is generated as several `chunk_seconds` clips, so total clips > number of scenes. / シーン数 ≦ クリップ数（区間内も chunk ごとに分割）。

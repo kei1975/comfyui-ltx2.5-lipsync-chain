@@ -221,6 +221,20 @@ State に `resolution` を追加。LTX-2.5 が安全に出せる 64 の倍数プ
   curvy / chubby / plump / heavy）: 人物タグの形容詞として「(a tall, slim 25-year-old Japanese woman)」の形で入れ、
   「The singer's height and body shape stay exactly the same in every shot.」を追加。指定時は caption 内の矛盾する語
   （`HEIGHT_WORDS` / `BUILD_WORDS`: tall/short/slim/plump…）を `_strip_words` で除去。キャッシュキーに含む
+- 歩く motion がシーン切替ごとに静止→歩き出しになる件: シーン先頭クリップは前フレームを引き継がず MSR 参照（静止写真）
+  だけから生成される構造のため（`use_msr_stage1 = ... or scene_start`、start frame 無し）。対策は文言のみ: 動き系プリセットに
+  「already mid-stride at the very first frame, no pause and no standing start」を追加
+- `camera`（auto / locked / slow push-in / slow pull-out / dolly left / dolly right / orbit / crane up / crane down / handheld /
+  follow / mix (varies per scene)）+ `camera_custom`: `CAMERA_MOVES` の文で雛形の「Camera locked.」系を `_apply_camera` で
+  置換（extra_cameras の行に固定文が無ければ末尾に追記）。優先順位 custom > preset > motion の追従カメラ > 固定。
+  mix は `CAMERA_MIX` をアングル番号順に割り当て。push-in/pull-out/crane は同一シーン内でクリップをまたいで蓄積する
+  （次クリップは前フレームの続きから）ので「very slowly, subtle」表現＋ tooltip で注意。
+  ReelBids camera LoRA（dolly-in 専用・654MB）は不採用: ドリーインのみ、チェーンで寄りが蓄積、LoRA 3本目で VRAM/画質懸念
+- orbit が効かなかった件（v10）: 置換が「Camera locked.」1文だけで、雛形冒頭の「Locked medium shot, camera level and still」が
+  残り矛盾していた＋150語の caption の後ろに埋もれていた。`_apply_camera` を作り直し: locked/still 系の語を全部除去し、
+  カメラ文をショット行の**先頭**に置く。さらに action_singing / action_intro の**末尾**に「Camera: …」として再掲
+  （プロンプトの先頭付近と末尾が最も効く）。動く motion のときは performance の「barely any head or body movement」→
+  「barely any head movement」に緩める。orbit + walking toward camera は意味的に矛盾するので auto(follow) か standing still 推奨
 
 ## 9. このフォルダの中身（Video-Sticher プロジェクト内のバックアップ）
 

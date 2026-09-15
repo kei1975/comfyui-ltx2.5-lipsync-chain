@@ -984,6 +984,35 @@ class LTXChainAutoScenes:
                    "voluptuous", "chubby", "plump", "overweight", "fat", "heavy", "heavyset", "heavy-set", "stocky",
                    "stout", "portly", "obese", "full-figured", "plus-size", "petite")
 
+    # camera movement applied to every angle (replaces "Camera locked." in the built-in templates).
+    # NOTE: push-in / pull-out / crane accumulate across the clips of one scene (each clip continues
+    # from the previous frames), so they are written as very slow and subtle.
+    CAMERA_MOVES = {
+        "auto": None,   # locked, or the follow-camera a moving `motion` asks for
+        "locked": "Camera locked, no movement, no zoom.",
+        "slow push-in": "The camera pushes in very slowly and smoothly toward the singer, a subtle gentle dolly-in, "
+                        "no cut.",
+        "slow pull-out": "The camera pulls back very slowly and smoothly, a subtle gentle dolly-out, the singer "
+                         "staying centred, no cut.",
+        "dolly left": "The camera glides slowly and smoothly sideways to the left on a dolly, the singer staying "
+                      "centred and the same size, gentle parallax in the background.",
+        "dolly right": "The camera glides slowly and smoothly sideways to the right on a dolly, the singer staying "
+                       "centred and the same size, gentle parallax in the background.",
+        "orbit": "The camera orbits slowly around the singer in a smooth continuous arc, the singer staying centred "
+                 "and the same size in the frame.",
+        "crane up": "The camera rises slowly and smoothly on a crane, tilting down a little to keep the singer "
+                    "framed, no zoom.",
+        "crane down": "The camera descends slowly and smoothly on a crane, tilting up a little to keep the singer "
+                      "framed, no zoom.",
+        "handheld": "Handheld camera with subtle natural sway and small organic micro-movements, documentary feel, "
+                    "the singer staying in frame.",
+        "follow": "The camera follows the singer smoothly, keeping the singer the same size and position in the "
+                  "frame.",
+        "mix (varies per scene)": None,  # a different move for each angle, see CAMERA_MIX
+    }
+    CAMERA_MIX = ["locked", "slow push-in", "dolly left", "orbit", "slow pull-out", "dolly right", "handheld",
+                  "crane up", "locked", "crane down"]
+
     # how the singer moves: (while singing, while listening, camera note or None)
     # the camera note replaces "Camera locked." in the built-in angles so the framing doesn't fight the motion
     MOTIONS = {
@@ -994,36 +1023,39 @@ class LTXChainAutoScenes:
             "standing in the same spot, feet planted", None),
         "gentle sway": (
             "The singer stays in the same spot, swaying gently from side to side with the rhythm, shifting weight "
-            "from foot to foot, no walking",
-            "swaying gently in place with the rhythm", None),
+            "from foot to foot, no walking, already swaying at the very first frame",
+            "swaying gently in place with the rhythm, already swaying at the first frame", None),
         "hand gestures": (
             "The singer stays in the same spot and expresses the song with the hands: flowing, expressive hand and "
             "arm gestures that follow the lyrics, no walking",
             "standing in place, the hands moving gently with the music", None),
         "light dance in place": (
             "The singer dances lightly in place to the song while singing: small dance steps, hip sway and arm "
-            "movements in time with the beat, staying in the same spot, the face natural and the lips in sync",
-            "moving lightly to the beat in place, small dance steps", None),
+            "movements in time with the beat, staying in the same spot, the face natural and the lips in sync, "
+            "already dancing at the very first frame, no standing start",
+            "moving lightly to the beat in place, small dance steps, already moving at the first frame", None),
         "dancing": (
             "The singer dances to the song while singing: the whole body moves with the rhythm, steps, turns and "
-            "arm movements in time with the beat, energetic but graceful, the face natural and the lips in sync",
-            "dancing to the beat, the whole body moving with the rhythm",
+            "arm movements in time with the beat, energetic but graceful, the face natural and the lips in sync, "
+            "already mid-dance at the very first frame, no pause and no standing start",
+            "dancing to the beat, the whole body moving with the rhythm, already dancing at the first frame",
             "Camera locked, the dancing stays within the frame."),
         "walking toward camera": (
             "The singer walks slowly and steadily toward the camera while singing, natural relaxed steps, the arms "
-            "swinging lightly",
-            "walking slowly toward the camera with natural relaxed steps",
+            "swinging lightly, already mid-stride at the very first frame, no pause and no standing start",
+            "walking slowly toward the camera with natural relaxed steps, already mid-stride at the first frame",
             "The camera glides smoothly backward at the same pace as the singer, so the singer stays the same size "
             "and position in the frame, no zoom."),
         "walking sideways": (
-            "The singer walks slowly along the scene from one side to the other while singing, natural relaxed steps",
-            "walking slowly across the scene with natural relaxed steps",
+            "The singer walks slowly along the scene from one side to the other while singing, natural relaxed steps, "
+            "already mid-stride at the very first frame, no pause and no standing start",
+            "walking slowly across the scene with natural relaxed steps, already mid-stride at the first frame",
             "The camera tracks sideways smoothly at the same pace, keeping the singer centred and the same size in "
             "the frame."),
         "strolling": (
             "The singer strolls slowly through the scene while singing, natural relaxed steps, looking around "
-            "occasionally and back to the camera",
-            "strolling slowly through the scene with natural relaxed steps",
+            "occasionally and back to the camera, already mid-stride at the very first frame, no standing start",
+            "strolling slowly through the scene with natural relaxed steps, already mid-stride at the first frame",
             "The camera follows smoothly, keeping the singer the same size in the frame."),
         "sitting": (
             "The singer stays seated in the same position for the whole shot, the upper body relaxed, the hands "
@@ -1119,6 +1151,11 @@ class LTXChainAutoScenes:
                            "tooltip": "背の高さ。none=指定なし（写真のまま）/ petite=小柄 / short=低め / average height=平均 / tall=高い / very tall=とても高い。指定すると人物説明に明記し、写真説明にある背の語（tall/short 等）は除去。膝上・全身の構図で効きます"}),
                 "build": (["none", "very slim", "slim", "athletic", "average", "curvy", "chubby", "plump", "heavy"], {"default": "none",
                           "tooltip": "体型。none=指定なし（写真のまま）/ very slim=とても痩せている / slim=痩せている / athletic=引き締まった / average=普通 / curvy=グラマー / chubby=ぽっちゃり / plump=太め / heavy=太っている。指定すると人物説明に明記し、写真説明にある体型の語（slim/plump 等）は除去。全シーンで体型を固定する文も追加"}),
+                "camera": (["auto", "locked", "slow push-in", "slow pull-out", "dolly left", "dolly right", "orbit",
+                            "crane up", "crane down", "handheld", "follow", "mix (varies per scene)"], {"default": "auto",
+                           "tooltip": "カメラワーク（全アングル共通）。auto=固定（歩く系 motion のときは追従）/ locked=固定 / slow push-in=ゆっくり寄る / slow pull-out=ゆっくり引く / dolly left・right=横にスライド / orbit=人物の周りを回る / crane up・down=上昇・下降 / handheld=手持ちの揺れ / follow=人物を追う / mix=シーンごとに違う動きを順番に割り当て。※push-in / pull-out / crane は同じシーン内でクリップをまたいで蓄積する（寄り続ける）ので、clips_per_scene を小さめにするか mix 推奨。下の camera_custom に書くとそちらが優先"}),
+                "camera_custom": ("STRING", {"default": "",
+                                  "tooltip": "任意。カメラワークを自由記述（英語推奨。例: slow lateral dolly from left to right, 50mm, the singer stays centred）。全アングルの「Camera locked.」と置き換わります。空なら上の camera を使用"}),
             },
             "optional": {
                 "chain": (CHAIN_TYPE, {"tooltip": "任意。ログ用"}),
@@ -1140,10 +1177,10 @@ class LTXChainAutoScenes:
         return ["", "", "two", "three", "four", "five", "six", "seven", "eight"][n] if 0 <= n <= 8 else str(n)
 
     @classmethod
-    def _cache_path(cls, image, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none"):
+    def _cache_path(cls, image, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom=""):
         d = os.path.join(_chains_root(), "_autoprompt")
         os.makedirs(d, exist_ok=True)
-        key = f'{style}|n{num_singers}|e{ethnicity}|p{performance}|a{age}|c{extra_cameras}|m{microphone}|g{gender}|x{emotion}|xc{emotion_custom}|v{motion}|vc{motion_custom}|h{height}|b{build}'
+        key = f'{style}|n{num_singers}|e{ethnicity}|p{performance}|a{age}|c{extra_cameras}|m{microphone}|g{gender}|x{emotion}|xc{emotion_custom}|v{motion}|vc{motion_custom}|h{height}|b{build}|k{camera}|kc{camera_custom}'
         return os.path.join(d, f"scenes_{cls._key(image, num_scenes, key)}.json")
 
     @staticmethod
@@ -1175,10 +1212,27 @@ class LTXChainAutoScenes:
         t = t.rstrip(". ").strip()
         return t[0].lower() + t[1:] if t else t
 
-    def check_lazy_status(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", chain=None):
-        if os.path.isfile(self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build)):
+    def check_lazy_status(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", chain=None):
+        if os.path.isfile(self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom)):
             return []
         return ["caption"]
+
+    @staticmethod
+    def _apply_camera(cam, note):
+        """Put the camera move at the head of the shot line and remove every 'locked / still' word from the
+        template, so the angle no longer contradicts the move (LTX weighs the start of a sentence most)."""
+        for l in ("The framing stays exactly the same for the whole shot, camera locked, no zoom and no push-in.",
+                  "Camera locked, the dancing stays within the frame.", "Camera locked.", "camera locked,",
+                  "camera level and still,", ", camera level and still", "no zoom and no push-in.",
+                  "The framing stays exactly the same for the whole shot,"):
+            cam = cam.replace(l, "")
+        cam = cam.replace("Locked medium shot", "Medium shot").replace("Locked ", "").replace("locked ", "")
+        cam = re.sub(r"\s{2,}", " ", cam).replace(" ,", ",").replace(" .", ".").strip().strip(",").strip()
+        if cam and not cam.endswith("."):
+            cam += "."
+        if cam:
+            cam = cam[0].upper() + cam[1:]
+        return (note.rstrip() + " " + cam).strip()
 
     @staticmethod
     def _strip_words(desc, words):
@@ -1264,7 +1318,7 @@ class LTXChainAutoScenes:
         low = f" {desc.lower()} "
         return any(w in low for w in cls.MIC_WORDS)
 
-    def _build(self, image, num_scenes, style, caption, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none"):
+    def _build(self, image, num_scenes, style, caption, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom=""):
         desc = self._clean_caption(caption)
         mic = self._wants_mic(microphone, desc)
         hgt = self.HEIGHTS.get(height, "")
@@ -1289,6 +1343,10 @@ class LTXChainAutoScenes:
         age_lock = (" The singer looks exactly the same age in every frame and never ages." if ns == 1
                     else " They look exactly the same age in every frame and never age.") if agep else ""
         clause = self.PERFORMANCE.get(performance, self.PERFORMANCE["restrained"])
+        if mot_sing and motion not in ("standing still", "sitting"):
+            clause = (clause.replace("barely any head or body movement", "barely any head movement")
+                            .replace("the head moving only softly with the melody, small gentle gestures",
+                                     "the head moving only softly with the melody"))
         art = lambda t: ("an" if t[:1].lower() in "aeiou" and not t[:1].isdigit() else "a")
         # only lock "glasses" when the reference actually has eyewear, otherwise the word itself
         # makes the model add glasses to a person who has none
@@ -1324,16 +1382,32 @@ class LTXChainAutoScenes:
             character = (f"Image 1 shows the {word} singers ({group}): {desc}. {allof} appear together "
                          f"in every shot; their faces, hair, clothing and the setting stay exactly the same as in "
                          f"the reference image.{age_lock}{body_lock}")
-        act_sing = self._sing(ns, clause, mic, emo_sing, mot_sing)
-        act_intro = self._intro(ns, mic, emo_listen, mot_listen)
+        # camera move: custom text > preset > the follow-camera a moving motion asks for > locked (None)
+        cc = " ".join((camera_custom or "").split()).strip()
+        if cc:
+            cc = cc[0].upper() + cc[1:]
+            cam_move = cc if cc.endswith(".") else cc + "."
+        elif camera == "mix (varies per scene)":
+            cam_move = "mix"
+        elif self.CAMERA_MOVES.get(camera):
+            cam_move = self.CAMERA_MOVES[camera]
+        else:
+            cam_move = cam_note
+        # the move is repeated as the last sentence of the prompt (the action comes last), where the
+        # model also pays close attention - a single mention buried after a long caption gets ignored
+        tail_cam = "" if cam_move in (None, "mix") else (" Camera: " + cam_move[0].lower() + cam_move[1:])
+        act_sing = self._sing(ns, clause, mic, emo_sing, mot_sing) + tail_cam
+        act_intro = self._intro(ns, mic, emo_listen, mot_listen) + tail_cam
         tail = ("\n\n" + style.strip()) if style.strip() else ""
         # camera rotation = the first `num_scenes` built-in angles + any custom angles the user added
         extras = [ln.strip() for ln in (extra_cameras or "").replace("\r", "").split("\n") if ln.strip()]
         base = self.CAMERAS_MIC if mic else self.CAMERAS_NOMIC
         cams = list(base[:max(1, int(num_scenes))]) + extras
-        if cam_note:  # a moving singer needs a following camera, not a locked one
-            cams = [c.replace("The framing stays exactly the same for the whole shot, camera locked, no zoom and "
-                              "no push-in.", cam_note).replace("Camera locked.", cam_note) for c in cams]
+        if cam_move == "mix":
+            cams = [self._apply_camera(c, self.CAMERA_MOVES[self.CAMERA_MIX[i % len(self.CAMERA_MIX)]])
+                    for i, c in enumerate(cams)]
+        elif cam_move:
+            cams = [self._apply_camera(c, cam_move) for c in cams]
         if motion == "sitting" and not (motion_custom or "").strip():
             cams = [c.replace("standing upright", "seated") for c in cams]
         if ns > 1:  # phrase every angle for more than one person
@@ -1344,21 +1418,22 @@ class LTXChainAutoScenes:
         return {"character": character, "scenes": "\n---\n".join(scenes),
                 "action_singing": act_sing, "action_intro": act_intro, "microphone": bool(mic),
                 "gender": g or "unknown", "emotion": (emotion_custom.strip() or emotion),
-                "motion": (motion_custom.strip() or motion), "height": height, "build": build}
+                "motion": (motion_custom.strip() or motion), "height": height, "build": build,
+                "camera": (camera_custom.strip() or camera)}
 
-    def run(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", chain=None):
-        path = self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build)
+    def run(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", chain=None):
+        path = self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom)
         clip = (chain.get("index", 0) + 1) if chain else 1
         if os.path.isfile(path):
             data = json.load(open(path, encoding="utf-8"))
             logging.info(f"[LTX Chain] clip {clip}: using cached auto-scenes {os.path.basename(path)}")
         else:
-            data = self._build(image, num_scenes, style, caption or "", num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build)
+            data = self._build(image, num_scenes, style, caption or "", num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom)
             json.dump(data, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
             logging.info(f"[LTX Chain] clip {clip}: analysed image -> auto-scenes cached ({os.path.basename(path)}), "
                          f"microphone={microphone} -> {'in frame' if data.get('microphone') else 'none'}, "
                          f"gender={gender} -> {data.get('gender')}, emotion={data.get('emotion')}, motion={data.get('motion')}, "
-                         f"height={height}, build={build}")
+                         f"height={height}, build={build}, camera={data.get('camera')}")
             logging.info(f"[LTX Chain] character: {data['character']}")
             import gc
             import comfy.model_management as mm

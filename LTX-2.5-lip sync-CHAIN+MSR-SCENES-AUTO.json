@@ -10147,7 +10147,9 @@
         "none",
         "",
         "none",
-        "none"
+        "none",
+        "auto",
+        ""
       ],
       "widgets_values_named": {
         "num_scenes": 4,
@@ -10164,7 +10166,9 @@
         "motion": "none",
         "motion_custom": "",
         "height": "none",
-        "build": "none"
+        "build": "none",
+        "camera": "auto",
+        "camera_custom": ""
       },
       "color": "#2a3f2a",
       "bgcolor": "#38513a"
