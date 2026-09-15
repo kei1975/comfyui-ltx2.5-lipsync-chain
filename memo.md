@@ -235,6 +235,12 @@ State に `resolution` を追加。LTX-2.5 が安全に出せる 64 の倍数プ
   カメラ文をショット行の**先頭**に置く。さらに action_singing / action_intro の**末尾**に「Camera: …」として再掲
   （プロンプトの先頭付近と末尾が最も効く）。動く motion のときは performance の「barely any head or body movement」→
   「barely any head movement」に緩める。orbit + walking toward camera は意味的に矛盾するので auto(follow) か standing still 推奨
+- very tall なのに全身ショットで子供体型（頭大・脚短）になる件（v12 clip 15〜）: MSR は顔だけ固定し体のプロポーションは
+  自由。「very tall」の形容詞1語は比較対象のない単独ショットでは無意味。→ `HEIGHTS` / `BUILDS` を (形容詞, 体の説明) にし、
+  「long-legged adult frame, the head small in proportion to the body, about eight and a half heads tall, never child-like」
+  のようにプロポーションで記述＋「in every framing, including full-body shots」で固定。全4ワークフローのネガティブに
+  「wrong body proportions, oversized head, tiny body, short stubby legs, chibi, dwarf, shrunken figure」を追加。
+  根本対策は MSR REF 2 に全身写真を入れること（AUTO では REF2〜4 バイパス中）
 
 ## 9. このフォルダの中身（Video-Sticher プロジェクト内のバックアップ）
 

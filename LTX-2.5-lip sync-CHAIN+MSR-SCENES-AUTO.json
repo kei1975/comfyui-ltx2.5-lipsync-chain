@@ -61,10 +61,10 @@
         }
       },
       "widgets_values": [
-        "blurry, low quality, still frame, frames, watermark, overlay, titles, has blurbox, has subtitles, exaggerated facial expression, wide open mouth, over-acting, overacting, grimacing, screaming, shouting, distorted face, theatrical"
+        "blurry, low quality, still frame, frames, watermark, overlay, titles, has blurbox, has subtitles, exaggerated facial expression, wide open mouth, over-acting, overacting, grimacing, screaming, shouting, distorted face, theatrical, wrong body proportions, oversized head, tiny body, short stubby legs, chibi, dwarf, shrunken figure"
       ],
       "widgets_values_named": {
-        "text": "blurry, low quality, still frame, frames, watermark, overlay, titles, has blurbox, has subtitles, exaggerated facial expression, wide open mouth, over-acting, overacting, grimacing, screaming, shouting, distorted face, theatrical"
+        "text": "blurry, low quality, still frame, frames, watermark, overlay, titles, has blurbox, has subtitles, exaggerated facial expression, wide open mouth, over-acting, overacting, grimacing, screaming, shouting, distorted face, theatrical, wrong body proportions, oversized head, tiny body, short stubby legs, chibi, dwarf, shrunken figure"
       },
       "color": "#322",
       "bgcolor": "#533"

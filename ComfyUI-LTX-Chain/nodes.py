@@ -959,24 +959,30 @@ class LTXChainAutoScenes:
 
     # height / body build: the adjective that goes into the "(a tall, slim 25-year-old Japanese woman)" tag,
     # plus a short body sentence so full-body angles keep the proportions
+    # (tag adjective, body description). "tall" alone means nothing in a lone shot with no reference
+    # object, so the description spells out the PROPORTIONS (leg length, head-to-body ratio) - that is
+    # what keeps a full-body walking shot from collapsing into a big-head / short-leg figure.
     HEIGHTS = {
-        "none": "",
-        "petite": "petite",
-        "short": "short",
-        "average height": "average-height",
-        "tall": "tall",
-        "very tall": "very tall",
+        "none": ("", ""),
+        "petite": ("petite", "a petite, small, delicate frame with a short stature"),
+        "short": ("short", "a short stature with a compact frame"),
+        "average height": ("average-height", "an average adult height with normal adult proportions"),
+        "tall": ("tall", "a tall, long-legged adult frame with a long torso, the head small in proportion to the "
+                         "body, adult proportions about eight heads tall"),
+        "very tall": ("very tall", "a very tall, towering, long-legged adult frame with a long torso and long arms, "
+                                   "the head small in proportion to the body, about eight and a half heads tall, "
+                                   "never child-like, stubby or shrunken proportions"),
     }
     BUILDS = {
-        "none": "",
-        "very slim": "very slim",
-        "slim": "slim",
-        "athletic": "athletic, toned",
-        "average": "average-build",
-        "curvy": "curvy",
-        "chubby": "chubby",
-        "plump": "plump",
-        "heavy": "heavy-set",
+        "none": ("", ""),
+        "very slim": ("very slim", "a very slim, narrow, bony frame"),
+        "slim": ("slim", "a slim, lean frame"),
+        "athletic": ("athletic, toned", "an athletic, toned frame with defined shoulders"),
+        "average": ("average-build", "an average build"),
+        "curvy": ("curvy", "a curvy, full-figured frame"),
+        "chubby": ("chubby", "a soft, chubby, rounded frame"),
+        "plump": ("plump", "a plump, heavy-set frame with a round belly"),
+        "heavy": ("heavy-set", "a heavy, large-bodied frame with a big belly and thick limbs"),
     }
     # caption words that would contradict a forced height / build (removed from the caption)
     HEIGHT_WORDS = ("tall", "short", "petite", "towering", "tiny", "diminutive", "statuesque")
@@ -1321,8 +1327,8 @@ class LTXChainAutoScenes:
     def _build(self, image, num_scenes, style, caption, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom=""):
         desc = self._clean_caption(caption)
         mic = self._wants_mic(microphone, desc)
-        hgt = self.HEIGHTS.get(height, "")
-        bld = self.BUILDS.get(build, "")
+        hgt, hdesc = self.HEIGHTS.get(height, ("", ""))
+        bld, bdesc = self.BUILDS.get(build, ("", ""))
         if hgt:
             desc = self._strip_words(desc, self.HEIGHT_WORDS)
         if bld:
@@ -1360,10 +1366,11 @@ class LTXChainAutoScenes:
         body = (body + " ") if body else ""
         # keep the proportions from drifting across the video (full-body angles especially)
         if hgt or bld:
-            what = " and ".join(x for x in ("height" if hgt else "", "body shape" if bld else "") if x)
-            verb = "stay" if (hgt and bld) else "stays"
-            body_lock = (f" The singer's {what} {verb} exactly the same in every shot." if ns == 1
-                         else f" Their {what} {verb} exactly the same in every shot.")
+            what = ", ".join(x for x in ("height" if hgt else "", "body shape" if bld else "") if x)
+            bodyd = "; ".join(x for x in (hdesc, bdesc) if x)
+            whose = "The singer's" if ns == 1 else "Each singer's"
+            body_lock = (f" {whose} body: {bodyd}. The {what} and proportions stay "
+                         f"exactly the same in every shot and in every framing, including full-body shots.")
         else:
             body_lock = ""
         if ns == 1:
