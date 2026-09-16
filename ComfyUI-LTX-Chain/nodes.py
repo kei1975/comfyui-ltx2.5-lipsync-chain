@@ -367,7 +367,8 @@ class LTXChainState:
                 os.path.join(sdir, "scene_ref_000.png"), compress_level=1)
             with open(os.path.join(sdir, "plan.json"), "w", encoding="utf-8") as f:
                 json.dump({"settings": {"audio_start_sec": audio_start_sec, "chunk_seconds": chunk_seconds, "fps": fps,
-                                        "overlap": overlap, "target": target, "cuts": cuts, "clips_per_scene": int(clips_per_scene)},
+                                        "overlap": overlap, "target": target, "cuts": cuts, "clips_per_scene": int(clips_per_scene),
+                                        "msr_clips": msr_clips, "generation": [out_w, out_h]},
                            "plan": plan}, f, ensure_ascii=False, indent=1)
         else:
             session = state["session"]
@@ -461,6 +462,7 @@ class LTXChainStep:
             },
             "optional": {
                 "chunk_audio": ("AUDIO", {"tooltip": "このクリップ分の音声（TrimAudioDuration の出力）。つなぐとクリップ mp4 に音声が付きます"}),
+                "handoff_images": ("IMAGE", {"tooltip": "任意。次クリップの参照（hand-off）に使うフレーム。ReActor で顔を直した「最後の数フレーム」をつなぐと、保存するクリップは元のままで、次クリップだけ正しい顔から生成されます（顔ドリフトのリセット）。末尾 handoff 枚だけ使用"}),
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO", "unique_id": "UNIQUE_ID"},
         }
@@ -471,7 +473,7 @@ class LTXChainStep:
     OUTPUT_NODE = True
     CATEGORY = "LTX Chain"
 
-    def run(self, images, chain, final_name, final_crf, auto_continue, chunk_audio=None,
+    def run(self, images, chain, final_name, final_crf, auto_continue, chunk_audio=None, handoff_images=None,
             prompt=None, extra_pnginfo=None, unique_id=None):
         n, total, fps = chain["index"], chain["total"], chain["fps"]
         handoff = chain.get("handoff", 1)
@@ -500,7 +502,19 @@ class LTXChainStep:
         # On a redo the old hand-off stays: the following clip was built on it (and the new clip
         # was pinned to end on it), so the seam remains continuous.
         k = min(handoff, images.shape[0])
-        hand = (images[-k:] * 255).clamp(0, 255).byte().cpu().numpy()
+        hand_src = images
+        if handoff_images is not None and handoff_images.shape[0] > 0:
+            # identity anchor: the next clip continues from face-corrected frames, the saved clip
+            # stays untouched. Same colour normalisation as the clip so the seam colour matches.
+            hs = handoff_images.float()
+            if hs.shape[1:3] != images.shape[1:3]:
+                hs = _fit_image(hs, images.shape[2], images.shape[1])
+            if strength > 0:
+                hs = _normalize_color(hs, color_ref, strength)
+            hand_src = hs
+            k = min(handoff, hs.shape[0])
+            logging.info(f"[LTX Chain] clip {n + 1}: hand-off taken from corrected frames ({k} of {hs.shape[0]})")
+        hand = (hand_src[-k:] * 255).clamp(0, 255).byte().cpu().numpy()
         hand_path = os.path.join(sdir, f"handoff_{n:03d}.npy")
         redo = bool(chain.get("redo"))
         next_redone = redo and (n + 1) in chain.get("redo_list", [])
@@ -1016,8 +1030,13 @@ class LTXChainAutoScenes:
                   "frame.",
         "mix (varies per scene)": None,  # a different move for each angle, see CAMERA_MIX
     }
-    CAMERA_MIX = ["locked", "slow push-in", "dolly left", "orbit", "slow pull-out", "dolly right", "handheld",
-                  "crane up", "locked", "crane down"]
+    # "mix": no push-in / pull-out - they keep going clip after clip inside one scene, and a figure that
+    # shrinks in frame is redrawn with child-like proportions. Both stay available as explicit choices.
+    CAMERA_MIX = ["locked", "dolly left", "handheld", "orbit", "locked", "dolly right", "crane up", "handheld",
+                  "locked", "crane down"]
+    # a walking / strolling singer: only cameras that travel with the singer (orbit / crane contradict it)
+    CAMERA_MIX_MOVING = ["follow", "handheld", "dolly left", "follow", "dolly right", "handheld"]
+    MOVING_MOTIONS = ("walking toward camera", "walking sideways", "strolling", "dancing")
 
     # how the singer moves: (while singing, while listening, camera note or None)
     # the camera note replaces "Camera locked." in the built-in angles so the framing doesn't fight the motion
@@ -1159,7 +1178,7 @@ class LTXChainAutoScenes:
                           "tooltip": "体型。none=指定なし（写真のまま）/ very slim=とても痩せている / slim=痩せている / athletic=引き締まった / average=普通 / curvy=グラマー / chubby=ぽっちゃり / plump=太め / heavy=太っている。指定すると人物説明に明記し、写真説明にある体型の語（slim/plump 等）は除去。全シーンで体型を固定する文も追加"}),
                 "camera": (["auto", "locked", "slow push-in", "slow pull-out", "dolly left", "dolly right", "orbit",
                             "crane up", "crane down", "handheld", "follow", "mix (varies per scene)"], {"default": "auto",
-                           "tooltip": "カメラワーク（全アングル共通）。auto=固定（歩く系 motion のときは追従）/ locked=固定 / slow push-in=ゆっくり寄る / slow pull-out=ゆっくり引く / dolly left・right=横にスライド / orbit=人物の周りを回る / crane up・down=上昇・下降 / handheld=手持ちの揺れ / follow=人物を追う / mix=シーンごとに違う動きを順番に割り当て。※push-in / pull-out / crane は同じシーン内でクリップをまたいで蓄積する（寄り続ける）ので、clips_per_scene を小さめにするか mix 推奨。下の camera_custom に書くとそちらが優先"}),
+                           "tooltip": "カメラワーク（全アングル共通）。auto=固定（歩く系 motion のときは追従）/ locked=固定 / slow push-in=ゆっくり寄る / slow pull-out=ゆっくり引く / dolly left・right=横にスライド / orbit=人物の周りを回る / crane up・down=上昇・下降 / handheld=手持ちの揺れ / follow=人物を追う / mix=シーンごとに違う動きを順番に割り当て（固定 / 横ドリー / 手持ち / オービット / クレーン。歩く系 motion のときは追従 / 手持ち / 横ドリーのみ）。※push-in / pull-out は同じシーン内でクリップをまたいで蓄積し、人物が小さくなると体型も崩れるので、明示的に選んだときだけ・clips_per_scene=1 で。下の camera_custom に書くとそちらが優先"}),
                 "camera_custom": ("STRING", {"default": "",
                                   "tooltip": "任意。カメラワークを自由記述（英語推奨。例: slow lateral dolly from left to right, 50mm, the singer stays centred）。全アングルの「Camera locked.」と置き換わります。空なら上の camera を使用"}),
             },
@@ -1411,8 +1430,9 @@ class LTXChainAutoScenes:
         base = self.CAMERAS_MIC if mic else self.CAMERAS_NOMIC
         cams = list(base[:max(1, int(num_scenes))]) + extras
         if cam_move == "mix":
-            cams = [self._apply_camera(c, self.CAMERA_MOVES[self.CAMERA_MIX[i % len(self.CAMERA_MIX)]])
-                    for i, c in enumerate(cams)]
+            moving = motion in self.MOVING_MOTIONS or bool((motion_custom or "").strip())
+            mix = self.CAMERA_MIX_MOVING if moving else self.CAMERA_MIX
+            cams = [self._apply_camera(c, self.CAMERA_MOVES[mix[i % len(mix)]]) for i, c in enumerate(cams)]
         elif cam_move:
             cams = [self._apply_camera(c, cam_move) for c in cams]
         if motion == "sitting" and not (motion_custom or "").strip():
@@ -1506,6 +1526,167 @@ class LTXChainPromptCache:
         return (text,)
 
 
+class LTXChainFaceOutputName:
+    """Output name for the ReActor post-process workflow: from the path of a finished video
+    (.../LTX2.5Chains/<session>/final.mp4) build `LTX2.5Chains/<session>-<suffix>/<suffix>`, so
+    Video Combine writes next to the session folder instead of a generic output/ReActor."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "video_path": ("STRING", {"default": "", "multiline": False,
+                                          "tooltip": "元動画のフルパス（Load Video (Path) と同じ文字列をつなぐ）"}),
+                "suffix": ("STRING", {"default": "final_face",
+                                      "tooltip": "フォルダ名とファイル名に付ける語。<セッション>-<suffix>/<suffix> になります"}),
+            },
+        }
+
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("filename_prefix", "session")
+    FUNCTION = "run"
+    CATEGORY = "LTX Chain"
+
+    def run(self, video_path, suffix):
+        path = (video_path or "").strip().strip('"')
+        suffix = (suffix or "final_face").strip() or "final_face"
+        parent = os.path.basename(os.path.dirname(path)) if path else ""
+        stem = os.path.splitext(os.path.basename(path))[0] if path else ""
+        session = parent if parent and parent.lower() != CHAINS_SUBDIR.lower() else (stem or "video")
+        prefix = f"{CHAINS_SUBDIR}/{session}-{suffix}/{suffix}"
+        logging.info(f"[LTX Chain] face output: {prefix}")
+        return (prefix, session)
+
+
+class LTXChainLastFrames:
+    """The clip's last `handoff` frames (from the chain), for the identity anchor: decode -> LastFrames
+    -> ReActor (-> Face Keep Mouth) -> Step.handoff_images. ReActor then swaps 9 frames, not 240."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "images": ("IMAGE", {"tooltip": "デコードしたクリップの全フレーム"}),
+                "chain": (CHAIN_TYPE, {"tooltip": "State の chain（hand-off 枚数を読む）"}),
+            },
+            "optional": {
+                "extra": ("INT", {"default": 0, "min": 0, "max": 64,
+                                  "tooltip": "hand-off 枚数に足して切り出す枚数（通常 0）"}),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("last_frames",)
+    FUNCTION = "run"
+    CATEGORY = "LTX Chain"
+
+    def run(self, images, chain, extra=0):
+        k = min(int(chain.get("handoff", 1)) + int(extra), images.shape[0])
+        return (images[-k:],)
+
+
+_FACE_APP = None
+
+
+def _face_app():
+    """insightface buffalo_l (the same detector ReActor uses), loaded once, CUDA if available."""
+    global _FACE_APP
+    if _FACE_APP is None:
+        from insightface.app import FaceAnalysis
+        root = os.path.join(folder_paths.models_dir, "insightface")
+        providers = ["CUDAExecutionProvider", "CPUExecutionProvider"] if torch.cuda.is_available() else ["CPUExecutionProvider"]
+        app = FaceAnalysis(name="buffalo_l", root=root, providers=providers, allowed_modules=["detection"])
+        app.prepare(ctx_id=0 if torch.cuda.is_available() else -1, det_size=(640, 640))
+        _FACE_APP = app
+        logging.info(f"[LTX Chain] face detector loaded ({providers[0]})")
+    return _FACE_APP
+
+
+class LTXChainFaceKeepMouth:
+    """Face swap + lip sync: keep the identity from the swapped frame (eyes, nose, cheeks) but put the
+    ORIGINAL mouth/chin back, so the swapper's habit of closing the mouth (and its frame-to-frame jumps
+    when the mouth opens wide) never reaches the output. Per frame: detect the face, build a soft ellipse
+    around the mouth from the 5 landmarks, blend original over swapped inside it. Frames with no face
+    reuse the previous mask so nothing pops."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "swapped": ("IMAGE", {"tooltip": "ReActor の SWAPPED_IMAGE（顔を入れ替えた後）"}),
+                "original": ("IMAGE", {"tooltip": "ReActor の ORIGINAL_IMAGE（入れ替え前。口の動きはこちらを使う）"}),
+                "mouth_width": ("FLOAT", {"default": 2.0, "min": 1.0, "max": 4.0, "step": 0.1,
+                                          "tooltip": "口の幅（口角の距離）の何倍を戻すか（横）。大きいほど頬まで元に戻る"}),
+                "mouth_height": ("FLOAT", {"default": 1.4, "min": 0.5, "max": 4.0, "step": 0.1,
+                                           "tooltip": "口の幅の何倍を戻すか（縦）。1.4 で口〜顎先あたり。鼻まで戻したくなければ小さく"}),
+                "down_shift": ("FLOAT", {"default": 0.15, "min": -0.5, "max": 1.0, "step": 0.05,
+                                         "tooltip": "楕円の中心を口から顎側へずらす量（口幅比）。顎の切り替わりが目立つなら大きく"}),
+                "feather": ("INT", {"default": 15, "min": 0, "max": 64, "step": 1,
+                                    "tooltip": "境界のぼかし幅（px）。継ぎ目が見えるなら大きく"}),
+                "strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.05,
+                                       "tooltip": "1.0 = 口の中は完全に元フレーム / 小さくすると入れ替え後の顔を少し混ぜる"}),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE", "MASK")
+    RETURN_NAMES = ("image", "mouth_mask")
+    FUNCTION = "run"
+    CATEGORY = "LTX Chain"
+
+    @staticmethod
+    def _mask_for(bgr, mouth_width, mouth_height, down_shift, feather):
+        import cv2
+        faces = _face_app().get(bgr)
+        if not faces:
+            return None
+        f = max(faces, key=lambda x: (x.bbox[2] - x.bbox[0]) * (x.bbox[3] - x.bbox[1]))
+        k = f.kps  # [left eye, right eye, nose, left mouth, right mouth]
+        le, re, lm, rm = k[0], k[1], k[3], k[4]
+        mw = float(np.linalg.norm(rm - lm))
+        if mw < 2:
+            return None
+        eye_c = (le + re) / 2
+        mouth_c = (lm + rm) / 2
+        down = mouth_c - eye_c
+        down = down / (np.linalg.norm(down) + 1e-6)
+        centre = mouth_c + down * (down_shift * mw)
+        angle = math.degrees(math.atan2(float(re[1] - le[1]), float(re[0] - le[0])))
+        h, w = bgr.shape[:2]
+        m = np.zeros((h, w), np.uint8)
+        cv2.ellipse(m, (int(round(centre[0])), int(round(centre[1]))),
+                    (max(1, int(round(mw * mouth_width / 2))), max(1, int(round(mw * mouth_height / 2)))),
+                    angle, 0, 360, 255, -1)
+        if feather > 0:
+            kk = feather * 2 + 1
+            m = cv2.GaussianBlur(m, (kk, kk), feather / 2.0)
+        return m.astype(np.float32) / 255.0
+
+    def run(self, swapped, original, mouth_width, mouth_height, down_shift, feather, strength):
+        n = min(swapped.shape[0], original.shape[0])
+        if original.shape[1:3] != swapped.shape[1:3]:
+            raise ValueError(f"swapped {tuple(swapped.shape[1:3])} and original {tuple(original.shape[1:3])} differ in size")
+        out = swapped[:n].clone()
+        masks = torch.zeros((n, swapped.shape[1], swapped.shape[2]), dtype=torch.float32)
+        last = None
+        missed = 0
+        for i in range(n):
+            bgr = (swapped[i].cpu().numpy()[..., ::-1] * 255).clip(0, 255).astype(np.uint8)
+            m = self._mask_for(np.ascontiguousarray(bgr), mouth_width, mouth_height, down_shift, feather)
+            if m is None:
+                missed += 1
+                m = last
+            else:
+                last = m
+            if m is None:
+                continue
+            mt = torch.from_numpy(m).to(out.device) * float(strength)
+            masks[i] = mt.cpu()
+            mt = mt.unsqueeze(-1)
+            out[i] = swapped[i] * (1 - mt) + original[i].to(out.device) * mt
+        logging.info(f"[LTX Chain] keep-mouth composite: {n} frames, {missed} without a detected face (previous mask reused)")
+        return (out, masks)
+
+
 NODE_CLASS_MAPPINGS = {
     "LTXChainState": LTXChainState,
     "LTXChainStep": LTXChainStep,
@@ -1514,6 +1695,9 @@ NODE_CLASS_MAPPINGS = {
     "LTXChainSceneCuts": LTXChainSceneCuts,
     "LTXChainAutoScenes": LTXChainAutoScenes,
     "LTXChainPromptCache": LTXChainPromptCache,
+    "LTXChainFaceOutputName": LTXChainFaceOutputName,
+    "LTXChainFaceKeepMouth": LTXChainFaceKeepMouth,
+    "LTXChainLastFrames": LTXChainLastFrames,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "LTXChainState": "LTX Chain: State (start of chain)",
@@ -1523,4 +1707,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LTXChainSceneCuts": "LTX Chain: Scene Cuts (waveform)",
     "LTXChainAutoScenes": "LTX Chain: Auto Scenes (image -> prompt)",
     "LTXChainPromptCache": "LTX Chain: Prompt Cache (enhance once)",
+    "LTXChainFaceOutputName": "LTX Chain: Face Output Name (ReActor)",
+    "LTXChainFaceKeepMouth": "LTX Chain: Face Keep Mouth (swap + lip sync)",
+    "LTXChainLastFrames": "LTX Chain: Last Frames (hand-off for ReActor)",
 }

@@ -241,6 +241,24 @@ State に `resolution` を追加。LTX-2.5 が安全に出せる 64 の倍数プ
   のようにプロポーションで記述＋「in every framing, including full-body shots」で固定。全4ワークフローのネガティブに
   「wrong body proportions, oversized head, tiny body, short stubby legs, chibi, dwarf, shrunken figure」を追加。
   根本対策は MSR REF 2 に全身写真を入れること（AUTO では REF2〜4 バイパス中）
+- 顔ドリフト対策として `LTX-2.5-lip sync-CHAIN+MSR-SCENES-AUTO+ReActor.json` を追加: VAE Decode(74) → ReActorFaceSwap(206,
+  source = REF 1 LoadImage 182) → Chain Step(179)。link 206 の始点を差し替え、304/305 を追加。クリップ単位（240 フレーム）で
+  回すので 4 分動画の一括ロードを避けられ、hand-off も補正後 → 次クリップが正しい顔から生成される。既定 face_restore=none
+  （速い）、顔アップが柔らかければ GFPGANv1.4 + visibility 0.5〜0.7。comfy validate は古い object_info を見るので
+  LTXChain 系の unknown_class_type は無視（curl の object_info では存在する）
+- 後がけ ReActor の結果: 顔は固定されるが (1) inswapper は口を閉じがち（ソース写真の表情を持ち込む）、(2) 口が大きく開くと
+  出力が急変して顔が飛ぶ。hyperswap_256 でも同傾向。→ `LTXChainFaceKeepMouth`（buffalo_l の 5 点ランドマークから口の楕円
+  マスクを作り元フレームを戻す）を追加したが、質感の差で貼り付け感は残る。
+- 決定版 = **顔アンカー方式**: Step に `handoff_images`（任意）を追加。Decode → `LTXChainLastFrames`（hand-off 枚数だけ）→
+  ReActor → KeepMouth → Step.handoff_images。保存クリップは images（純 LTX）のまま、hand-off だけ補正後になるので
+  次クリップが正しい顔から始まる。補正は継ぎ目の 9 フレーム・ディゾルブで吸収。ReActor は 9 フレーム分で数秒。
+  AUTO+ReActor ワークフローはこの配線に変更済み（ComfyUI 側 user/default/workflows にも同じものを配置）。
+- onnxruntime: onnxruntime / onnxruntime-gpu / onnxruntime-openvino が同居して OpenVINO 版が GPU 版を隠していた
+  （CPU 実行で ReActor が ~1 fps）。3 つ削除 → onnxruntime-gpu 1.26.0 のみ再インストールで CUDA EP 有効。それでも
+  ReActor はフレーム単位の Python ループなので 512x896 で ~2 fps（4 分動画 ≈ 52 分）。
+- v03 clip 14-15 の体型崩れ: mix の「slow pull-out」＋ strolling で人物が小さくなり再描画で子供体型に。mix から
+  push-in/pull-out を除外、歩く系 motion では `CAMERA_MIX_MOVING`（follow/handheld/横ドリー）のみ。plan.json に
+  msr_clips と生成解像度を記録するようにした
 
 ## 9. このフォルダの中身（Video-Sticher プロジェクト内のバックアップ）
 

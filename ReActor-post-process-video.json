@@ -1,0 +1,876 @@
+{
+  "id": "15c5c2e3-e14e-4bdb-8dc0-60ccaa79dc41",
+  "revision": 0,
+  "last_node_id": 9,
+  "last_link_id": 11,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "VHS_BatchManager",
+      "pos": [
+        60,
+        1060
+      ],
+      "size": [
+        320,
+        60
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "frames_per_batch",
+          "type": "INT",
+          "widget": {
+            "name": "frames_per_batch"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "links": [
+            1,
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_BatchManager"
+      },
+      "widgets_values": [
+        240,
+        0
+      ],
+      "title": "バッチ管理（メモリ節約）"
+    },
+    {
+      "id": 2,
+      "type": "VHS_LoadVideoPath",
+      "pos": [
+        60,
+        180
+      ],
+      "size": [
+        420,
+        330
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "link": 1
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null
+        },
+        {
+          "name": "video",
+          "type": "STRING",
+          "widget": {
+            "name": "video"
+          },
+          "link": 7
+        },
+        {
+          "name": "force_rate",
+          "type": "FLOAT",
+          "widget": {
+            "name": "force_rate"
+          },
+          "link": null
+        },
+        {
+          "name": "custom_width",
+          "type": "INT",
+          "widget": {
+            "name": "custom_width"
+          },
+          "link": null
+        },
+        {
+          "name": "custom_height",
+          "type": "INT",
+          "widget": {
+            "name": "custom_height"
+          },
+          "link": null
+        },
+        {
+          "name": "frame_load_cap",
+          "type": "INT",
+          "widget": {
+            "name": "frame_load_cap"
+          },
+          "link": null
+        },
+        {
+          "name": "skip_first_frames",
+          "type": "INT",
+          "widget": {
+            "name": "skip_first_frames"
+          },
+          "link": null
+        },
+        {
+          "name": "select_every_nth",
+          "type": "INT",
+          "widget": {
+            "name": "select_every_nth"
+          },
+          "link": null
+        },
+        {
+          "name": "format",
+          "type": "COMBO",
+          "widget": {
+            "name": "format"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            3
+          ]
+        },
+        {
+          "name": "frame_count",
+          "type": "INT",
+          "links": []
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            5
+          ]
+        },
+        {
+          "name": "video_info",
+          "type": "VHS_VIDEOINFO",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_LoadVideoPath"
+      },
+      "widgets_values": {
+        "video": "E:\\download\\ComfyUI-Easy-Install-Windows\\ComfyUI-Easy-Install\\ComfyUI\\output\\LTX2.5Chains\\20260915_v12\\kiri-final-walking.mp4",
+        "force_rate": 0,
+        "custom_width": 0,
+        "custom_height": 0,
+        "frame_load_cap": 0,
+        "skip_first_frames": 0,
+        "select_every_nth": 1,
+        "format": "None"
+      },
+      "title": "② 動画を読み込む（パスは①から）"
+    },
+    {
+      "id": 3,
+      "type": "LoadImage",
+      "pos": [
+        60,
+        560
+      ],
+      "size": [
+        420,
+        460
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            4
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "Codex 画像 2026年9月14日 20_14_32.png",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "Codex 画像 2026年9月14日 20_14_32.png",
+        "upload": "image"
+      },
+      "title": "③ 顔写真（スワップ元 = REF 1 と同じ）"
+    },
+    {
+      "id": 4,
+      "type": "ReActorFaceSwap",
+      "pos": [
+        560,
+        180
+      ],
+      "size": [
+        400,
+        420
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_image",
+          "type": "IMAGE",
+          "link": 3
+        },
+        {
+          "name": "source_image",
+          "type": "IMAGE",
+          "link": 4
+        },
+        {
+          "name": "face_model",
+          "type": "FACE_MODEL",
+          "link": null
+        },
+        {
+          "name": "face_boost",
+          "type": "FACE_BOOST",
+          "link": null
+        },
+        {
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled"
+          },
+          "link": null
+        },
+        {
+          "name": "swap_model",
+          "type": "COMBO",
+          "widget": {
+            "name": "swap_model"
+          },
+          "link": null
+        },
+        {
+          "name": "facedetection",
+          "type": "COMBO",
+          "widget": {
+            "name": "facedetection"
+          },
+          "link": null
+        },
+        {
+          "name": "face_restore_model",
+          "type": "COMBO",
+          "widget": {
+            "name": "face_restore_model"
+          },
+          "link": null
+        },
+        {
+          "name": "face_restore_visibility",
+          "type": "FLOAT",
+          "widget": {
+            "name": "face_restore_visibility"
+          },
+          "link": null
+        },
+        {
+          "name": "codeformer_weight",
+          "type": "FLOAT",
+          "widget": {
+            "name": "codeformer_weight"
+          },
+          "link": null
+        },
+        {
+          "name": "detect_gender_input",
+          "type": "COMBO",
+          "widget": {
+            "name": "detect_gender_input"
+          },
+          "link": null
+        },
+        {
+          "name": "detect_gender_source",
+          "type": "COMBO",
+          "widget": {
+            "name": "detect_gender_source"
+          },
+          "link": null
+        },
+        {
+          "name": "input_faces_index",
+          "type": "STRING",
+          "widget": {
+            "name": "input_faces_index"
+          },
+          "link": null
+        },
+        {
+          "name": "source_faces_index",
+          "type": "STRING",
+          "widget": {
+            "name": "source_faces_index"
+          },
+          "link": null
+        },
+        {
+          "name": "console_log_level",
+          "type": "COMBO",
+          "widget": {
+            "name": "console_log_level"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SWAPPED_IMAGE",
+          "type": "IMAGE",
+          "links": [
+            10
+          ]
+        },
+        {
+          "name": "FACE_MODEL",
+          "type": "FACE_MODEL",
+          "links": []
+        },
+        {
+          "name": "ORIGINAL_IMAGE",
+          "type": "IMAGE",
+          "links": [
+            11
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ReActorFaceSwap"
+      },
+      "widgets_values": [
+        true,
+        "inswapper_128.onnx",
+        "retinaface_resnet50",
+        "none",
+        0.6,
+        0.5,
+        "no",
+        "no",
+        "0",
+        "0",
+        1
+      ],
+      "widgets_values_named": {
+        "enabled": true,
+        "swap_model": "inswapper_128.onnx",
+        "facedetection": "retinaface_resnet50",
+        "face_restore_model": "none",
+        "face_restore_visibility": 0.6,
+        "codeformer_weight": 0.5,
+        "detect_gender_input": "no",
+        "detect_gender_source": "no",
+        "input_faces_index": "0",
+        "source_faces_index": "0",
+        "console_log_level": 1
+      },
+      "title": "④ ReActor 顔の固定",
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 5,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        1420,
+        180
+      ],
+      "size": [
+        420,
+        620
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 6
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 5
+        },
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "link": 2
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null
+        },
+        {
+          "name": "frame_rate",
+          "type": "FLOAT",
+          "widget": {
+            "name": "frame_rate"
+          },
+          "link": null
+        },
+        {
+          "name": "loop_count",
+          "type": "INT",
+          "widget": {
+            "name": "loop_count"
+          },
+          "link": null
+        },
+        {
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": 9
+        },
+        {
+          "name": "format",
+          "type": "COMBO",
+          "widget": {
+            "name": "format"
+          },
+          "link": null
+        },
+        {
+          "name": "pingpong",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "pingpong"
+          },
+          "link": null
+        },
+        {
+          "name": "save_output",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "save_output"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 24,
+        "loop_count": 0,
+        "filename_prefix": "ReActor/final_face",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 16,
+        "save_metadata": true,
+        "trim_to_audio": false,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {}
+        }
+      },
+      "title": "⑤ 保存 → output/LTX2.5Chains/<セッション>-final_face/final_face_00001-audio.mp4"
+    },
+    {
+      "id": 6,
+      "type": "MarkdownNote",
+      "pos": [
+        560,
+        640
+      ],
+      "size": [
+        440,
+        420
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MarkdownNote"
+      },
+      "widgets_values": [
+        "## 出来上がった動画に ReActor をかける\n\n1. **① 動画を読み込む** の `video` に final.mp4 のフルパスを貼る（例: `output\\LTX2.5Chains\\<日付>_vNN\\final.mp4`）\n2. **② 顔写真** に REF 1 と同じ顔のアップをアップロード\n3. Run → `output/ReActor/final_face_xxxxx.mp4`（音声はそのまま引き継ぎ）\n\n- `frame_rate` は元動画と同じ **24** に（違うと音ずれ）\n- **バッチ管理** が 240 フレームずつ処理するので 4 分の動画でもメモリに収まります。足りなければ `frames_per_batch` を 120 に\n- 速度: `face_restore_model = none` で約 15〜25 fps（4 分 ≒ 5〜8 分）、`GFPGANv1.4` で約 3〜5 fps（4 分 ≒ 25〜40 分）。`face_restore_visibility` は 0.5〜0.7 が自然\n- 一部だけ試す: `skip_first_frames` と `frame_load_cap`（例: 3360 と 480 = 2:20 から 20 秒）\n- 複数人: `input_faces_index` / `source_faces_index` を `0,1` のように\n\n**口は元のまま ノード**: ReActor は口を閉じがち・口が開くと顔が飛ぶので、口〜顎だけ元フレームに戻します。`mouth_width`/`mouth_height` で戻す範囲、`feather` で境界のぼかし。`strength = 0` で無効。"
+      ],
+      "title": "使い方",
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 7,
+      "type": "PrimitiveString",
+      "pos": [
+        60,
+        60
+      ],
+      "size": [
+        420,
+        60
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "value",
+          "type": "STRING",
+          "widget": {
+            "name": "value"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            7,
+            8
+          ]
+        }
+      ],
+      "title": "① 動画のフルパス（ここに貼る）",
+      "properties": {
+        "Node name for S&R": "PrimitiveString"
+      },
+      "widgets_values": [
+        "E:\\download\\ComfyUI-Easy-Install-Windows\\ComfyUI-Easy-Install\\ComfyUI\\output\\LTX2.5Chains\\20260915_v12\\kiri-final-walking.mp4"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 8,
+      "type": "LTXChainFaceOutputName",
+      "pos": [
+        560,
+        60
+      ],
+      "size": [
+        400,
+        100
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video_path",
+          "type": "STRING",
+          "widget": {
+            "name": "video_path"
+          },
+          "link": 8
+        },
+        {
+          "name": "suffix",
+          "type": "STRING",
+          "widget": {
+            "name": "suffix"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "filename_prefix",
+          "type": "STRING",
+          "links": [
+            9
+          ]
+        },
+        {
+          "name": "session",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "title": "保存先を自動で決める → LTX2.5Chains/<セッション>-final_face/",
+      "properties": {
+        "Node name for S&R": "LTXChainFaceOutputName"
+      },
+      "widgets_values": [
+        "",
+        "final_face"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 9,
+      "type": "LTXChainFaceKeepMouth",
+      "pos": [
+        1000,
+        180
+      ],
+      "size": [
+        380,
+        250
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "swapped",
+          "type": "IMAGE",
+          "link": 10
+        },
+        {
+          "name": "original",
+          "type": "IMAGE",
+          "link": 11
+        },
+        {
+          "name": "mouth_width",
+          "type": "FLOAT",
+          "widget": {
+            "name": "mouth_width"
+          },
+          "link": null
+        },
+        {
+          "name": "mouth_height",
+          "type": "FLOAT",
+          "widget": {
+            "name": "mouth_height"
+          },
+          "link": null
+        },
+        {
+          "name": "down_shift",
+          "type": "FLOAT",
+          "widget": {
+            "name": "down_shift"
+          },
+          "link": null
+        },
+        {
+          "name": "feather",
+          "type": "INT",
+          "widget": {
+            "name": "feather"
+          },
+          "link": null
+        },
+        {
+          "name": "strength",
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            6
+          ]
+        },
+        {
+          "name": "mouth_mask",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "title": "口は元のまま（顔＝参照・口＝LTX）",
+      "properties": {
+        "Node name for S&R": "LTXChainFaceKeepMouth"
+      },
+      "widgets_values": [
+        2.0,
+        1.4,
+        0.15,
+        15,
+        1.0
+      ],
+      "widgets_values_named": {
+        "mouth_width": 2.0,
+        "mouth_height": 1.4,
+        "down_shift": 0.15,
+        "feather": 15,
+        "strength": 1.0
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "VHS_BatchManager"
+    ],
+    [
+      2,
+      1,
+      0,
+      5,
+      2,
+      "VHS_BatchManager"
+    ],
+    [
+      3,
+      2,
+      0,
+      4,
+      0,
+      "IMAGE"
+    ],
+    [
+      4,
+      3,
+      0,
+      4,
+      1,
+      "IMAGE"
+    ],
+    [
+      5,
+      2,
+      2,
+      5,
+      1,
+      "AUDIO"
+    ],
+    [
+      6,
+      9,
+      0,
+      5,
+      0,
+      "IMAGE"
+    ],
+    [
+      7,
+      7,
+      0,
+      2,
+      2,
+      "STRING"
+    ],
+    [
+      8,
+      7,
+      0,
+      8,
+      0,
+      "STRING"
+    ],
+    [
+      9,
+      8,
+      0,
+      5,
+      6,
+      "STRING"
+    ],
+    [
+      10,
+      4,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ],
+    [
+      11,
+      4,
+      2,
+      9,
+      1,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "出来上がった動画に ReActor（顔の固定）をかける",
+      "bounding": [
+        30,
+        -10,
+        1840,
+        1160
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8,
+      "offset": [
+        40,
+        40
+      ]
+    }
+  },
+  "version": 0.4
+}
