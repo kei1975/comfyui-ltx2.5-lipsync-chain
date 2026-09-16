@@ -7260,21 +7260,21 @@
           "name": "pic2",
           "shape": 7,
           "type": "IMAGE",
-          "link": 211
+          "link": null
         },
         {
           "localized_name": "pic3",
           "name": "pic3",
           "shape": 7,
           "type": "IMAGE",
-          "link": 266
+          "link": null
         },
         {
           "localized_name": "pic4",
           "name": "pic4",
           "shape": 7,
           "type": "IMAGE",
-          "link": 268
+          "link": null
         },
         {
           "localized_name": "background",
@@ -7362,7 +7362,7 @@
           ]
         }
       ],
-      "title": "MSR Reference Guide (Stage 1)",
+      "title": "MSR Reference Guide (Stage 1) — pic1 = 全身だけ（構図・体型）",
       "properties": {
         "Node name for S&R": "ComfyUILTX25MSRMultiReferenceGuide",
         "ue_properties": {
@@ -7610,7 +7610,7 @@
           ]
         }
       ],
-      "title": "MSR Reference Guide (Stage 2)",
+      "title": "MSR Reference Guide (Stage 2) — 全参照（顔の細部）",
       "properties": {
         "Node name for S&R": "ComfyUILTX25MSRMultiReferenceGuide",
         "ue_properties": {
@@ -8641,7 +8641,6 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            268,
             269
           ]
         },
@@ -9402,7 +9401,6 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            266,
             267
           ]
         },
@@ -9478,7 +9476,6 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            211,
             221
           ]
         },
@@ -11825,14 +11822,6 @@
       "VAE"
     ],
     [
-      211,
-      183,
-      0,
-      184,
-      5,
-      "IMAGE"
-    ],
-    [
       212,
       181,
       1,
@@ -12137,27 +12126,11 @@
       "BOOLEAN"
     ],
     [
-      266,
-      196,
-      0,
-      184,
-      6,
-      "IMAGE"
-    ],
-    [
       267,
       196,
       0,
       186,
       6,
-      "IMAGE"
-    ],
-    [
-      268,
-      197,
-      0,
-      184,
-      7,
       "IMAGE"
     ],
     [

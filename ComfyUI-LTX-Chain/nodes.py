@@ -83,6 +83,14 @@ RES_PRESETS = [
     "832x640 — landscape 4:3",
     "1024x576 — landscape 16:9",
     "896x512 — landscape 16:9 (light)",
+    # test sizes (~480p and below): fast previews of motion / camera / scene cuts. Faces get very
+    # few pixels here, so identity, lip sync and body proportions are NOT representative.
+    "448x832 — portrait 9:16 (test ~480p)",
+    "384x704 — portrait 9:16 (test tiny)",
+    "448x576 — portrait 3:4 (test)",
+    "512x512 — square 1:1 (test)",
+    "832x448 — landscape 16:9 (test ~480p)",
+    "704x384 — landscape 16:9 (test tiny)",
 ]
 
 
@@ -238,7 +246,7 @@ class LTXChainState:
                                            "tooltip": "length_mode が seconds のとき、合計で作る秒数"}),
                 "fps": ("INT", {"default": 24, "min": 1, "max": 120}),
                 "resolution": (RES_PRESETS, {"default": RES_PRESETS[0],
-                                             "tooltip": "書き出しサイズ。LTX-2.5 が安全に出せる 64 の倍数のサイズから選ぶ。auto = 画像の縦横比のまま generation_width×height の面積で決める。数値を選ぶとその WxH で書き出し（画像はその比率に中央クロップ）。大きいほど VRAM を使うので 12GB では ~600k px 目安"}),
+                                             "tooltip": "書き出しサイズ。LTX-2.5 が安全に出せる 64 の倍数のサイズから選ぶ。auto = 画像の縦横比のまま generation_width×height の面積で決める。数値を選ぶとその WxH で書き出し（画像はその比率に中央クロップ）。大きいほど VRAM を使うので 12GB では ~600k px 目安。(test) 付きは動き・カメラ・シーン切替を速く確認するための小サイズ（480p 相当以下）。顔の画素が少ないので顔の一貫性・リップシンク・体型の判断には使わないこと。本番と同じセッションで redo には使えない（サイズが混ざる）"}),
                 "generation_width": ("INT", {"default": 609, "min": 64, "max": 4096,
                                              "tooltip": "生成サイズの目安（幅）。縦横比は入力画像のまま、面積がこの幅×高さになるよう 64 の倍数に丸めます"}),
                 "generation_height": ("INT", {"default": 1056, "min": 64, "max": 4096,
@@ -261,10 +269,13 @@ class LTXChainState:
                                             "tooltip": "作り直すセッションのフォルダ名（例 20260914_v22）。redo_clips と一緒に使う"}),
                 "redo_clips": ("STRING", {"default": "", "multiline": False,
                                           "tooltip": "作り直すクリップ番号（clip_003 なら 3。カンマ区切りで複数可）。空なら通常の生成。終わったら空に戻す"}),
+
                 "chain_iter": ("INT", {"default": 0, "min": 0, "max": 100000,
                                        "tooltip": "内部用。手動実行のときは 0 のままにしてください（自動で進みます）"}),
                 "chain_state": ("STRING", {"default": "", "multiline": False,
                                            "tooltip": "内部用。手動実行のときは空のままにしてください"}),
+                "scene_switching": ("BOOLEAN", {"default": True, "label_on": "ON", "label_off": "OFF",
+                                                "tooltip": "シーン切替のワンボタン。OFF にすると scene_cuts と clips_per_scene を無視して 1 シーン（最初のカメラアングル）で最後まで生成。設定は消さずに残るので、ON に戻せば元どおり"}),
             }
         }
 
@@ -284,7 +295,7 @@ class LTXChainState:
     def run(self, image, audio, audio_start_sec, chunk_seconds, length_mode, length_seconds,
             fps, chain_iter, chain_state, resolution=RES_PRESETS[0], generation_width=609, generation_height=1056,
             msr_clips="stage2_all", clips_per_scene=0, scene_cuts="", overlap_frames=8, handoff_color_match=1.0,
-            scene_crossfade=True, seed=42, redo_session="", redo_clips=""):
+            scene_crossfade=True, seed=42, redo_session="", redo_clips="", scene_switching=True):
         available = max(0.0, _audio_seconds(audio) - audio_start_sec)
         target = available if length_mode == "all" else min(float(length_seconds), available)
         if target <= 0:
@@ -296,6 +307,9 @@ class LTXChainState:
         # clip, so each additional clip only adds chunk_seconds - overlap/fps of new video
         step = chunk_seconds - overlap / fps
         cuts = _parse_cuts(scene_cuts)
+        if not scene_switching:
+            cuts, clips_per_scene = [], 0
+            logging.info("[LTX Chain] scene switching OFF: one scene for the whole run")
         if cuts:
             plan = _schedule(audio_start_sec, target, chunk_seconds, step, fps, cuts)
         else:

@@ -259,6 +259,12 @@ State に `resolution` を追加。LTX-2.5 が安全に出せる 64 の倍数プ
 - v03 clip 14-15 の体型崩れ: mix の「slow pull-out」＋ strolling で人物が小さくなり再描画で子供体型に。mix から
   push-in/pull-out を除外、歩く系 motion では `CAMERA_MIX_MOVING`（follow/handheld/横ドリー）のみ。plan.json に
   msr_clips と生成解像度を記録するようにした
+- v04（704x704・msr_clips=all）: 各クリップが引き→顔アップに収束、グレーのピラーボックス。原因 (1) 正方形サイズに縦長参照 →
+  MSR の余白をモデルが描く、(2) Stage 1 に顔アップ参照（REF1〜3）が毎クリップ入り構図が顔アップへ引き戻される。
+  → AUTO+ReActor の Stage 1 MSR Guide は pic1（全身）だけに配線変更、Stage 2 は全参照のまま
+- State: `resolution` にテスト用小サイズ（448x832 / 384x704 / 448x576 / 512x512 / 832x448 / 704x384、いずれも 64 倍数）。
+  `web/resolution_notice.js` が (test) 選択時に app.ui.dialog で注意を表示（通常→test に切り替えた時だけ）
+- State: `scene_switching`（BOOLEAN、末尾に追加＝widgets_values の位置ずれ回避）。OFF で cuts/clips_per_scene を無視し 1 シーン
 
 ## 9. このフォルダの中身（Video-Sticher プロジェクト内のバックアップ）
 
