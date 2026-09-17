@@ -5,9 +5,9 @@
 
 A set of custom ComfyUI nodes + workflows that chain LTX‑2.5 into a self‑continuing generator: each clip's last frames become the next clip's start, the singer's identity is held with **MSR (Multiple‑Subject Reference)**, scenes/camera angles change on the beat, and everything is concatenated with the original audio into one `final.mp4`.
 
-![example output — one identity held across a 30s clip](docs/example-output.jpg)
+![example output — one identity held across a full song](docs/example-output.jpg)
 
-<sub>Example: frames from a full ~3‑minute song. Same face, hair, glasses, outfit and studio throughout; expression follows the vocals. / 例：約3分のフル尺からのフレーム。顔・髪・眼鏡・服・スタジオは一貫、表情は歌声に追従。</sub>
+<sub>Example: frames spread across a full 3:10 song (512 × 896, one Run). Same face, hair, pink glasses, plaid blazer and studio throughout; the mouth and expression follow the vocals. / 例：3分10秒のフル尺（512×896、Run 1回）から等間隔に抜いたフレーム。顔・髪・ピンク眼鏡・チェックのジャケット・スタジオは一貫、口と表情は歌声に追従。</sub>
 
 ---
 
@@ -19,11 +19,11 @@ Preview below is compressed to **480p**. Sample files are in [`videos/`](videos/
 > The clips have rough spots — they're here to show how much you can get from **just one photo + one audio file in a single Run**, not as a finished edit.
 > クリップには粗い箇所もありますが、これは **写真1枚と音源1つだけ・一回の実行**でここまで作れるという趣旨のデモで、完成品ではありません。
 
-**Paris d'avant** — pink‑glasses singer / ピンク眼鏡, ~3 min · exported at **576 × 720 px** / 書き出しサイズ 576×720
+**Paris d'avant** — pink‑glasses singer / ピンク眼鏡, 3:10 · exported at **512 × 896 px** / 書き出しサイズ 512×896 · preview 274 × 480
 
 <video src="videos/paris-davant-480p.mp4" controls width="360"></video>
 
-<sub>If the player doesn't load / 再生されない場合: <a href="videos/paris-davant-480p.mp4">480p (portrait)</a> · <a href="videos/Paris%20d%27avant-final_3-comp.mp4">larger 576×720</a></sub>
+<sub>If the player doesn't load / 再生されない場合: <a href="videos/paris-davant-480p.mp4">480p (portrait)</a> · <a href="videos/Paris%20d%27avant-final_3-comp.mp4">full size 512×896</a></sub>
 
 > On GitHub, `.mp4` files play inline once the repo is public. Locally, click the links to open them. / GitHub 上では公開後にインライン再生されます。ローカルではリンクから開いてください。
 
