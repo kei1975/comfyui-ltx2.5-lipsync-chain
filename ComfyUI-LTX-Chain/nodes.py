@@ -798,13 +798,34 @@ class LTXChainScenePrompt:
             },
             "optional": {
                 "vocals": ("AUDIO", {"tooltip": "このクリップの歌声だけの音声（MelBandRoFormer の vocals）。歌がほとんど無いクリップは action_intro"}),
-                "vocal_threshold_db": ("FLOAT", {"default": -40.0, "min": -90.0, "max": 0.0, "step": 1.0}),
-                "min_vocal_ratio": ("FLOAT", {"default": 0.2, "min": 0.0, "max": 1.0, "step": 0.05}),
+                "vocal_threshold_db": ("FLOAT", {"default": -40.0, "min": -90.0, "max": 0.0, "step": 1.0,
+                                                 "tooltip": "この音量（dB）を超える区間を「歌っている」とみなす。楽器の漏れを拾うなら -30 などに上げる"}),
+                "min_vocal_ratio": ("FLOAT", {"default": 0.2, "min": 0.0, "max": 1.0, "step": 0.05,
+                                              "tooltip": "クリップ内で歌っている時間の割合がこれ未満なら「歌わない（intro）」扱い。判定ログの vocal ratio を見て決める（歌クリップの最小値と間奏の最大値の間に置く）"}),
+                "force_intro_clips": ("STRING", {"default": "", "multiline": False,
+                                                 "tooltip": "自動判定を上書きして「歌わない」にするクリップ番号（clip_019 なら 19。カンマ区切り、範囲は 5-8）。間奏なのに歌ってしまうクリップに"}),
+                "force_singing_clips": ("STRING", {"default": "", "multiline": False,
+                                                   "tooltip": "自動判定を上書きして「歌う」にするクリップ番号（カンマ区切り、範囲可）。歌っているのに口が閉じるクリップに"}),
             },
         }
 
     RETURN_TYPES = ("STRING", "BOOLEAN", "INT", "STRING")
     RETURN_NAMES = ("prompt", "is_singing", "scene_index", "info")
+
+    @staticmethod
+    def _clip_list(text):
+        """'3, 5-8, 19' -> {3, 5, 6, 7, 8, 19} (1-based clip numbers as shown in the log / file names)."""
+        out = set()
+        for tok in re.split(r"[\s,;]+", (text or "").strip()):
+            if not tok:
+                continue
+            m = re.fullmatch(r"(\d+)\s*-\s*(\d+)", tok)
+            if m:
+                a, b = int(m.group(1)), int(m.group(2))
+                out.update(range(min(a, b), max(a, b) + 1))
+            elif tok.isdigit():
+                out.add(int(tok))
+        return out
     FUNCTION = "run"
     CATEGORY = "LTX Chain"
 
@@ -820,7 +841,7 @@ class LTXChainScenePrompt:
         return [b for b in blocks if b]
 
     def run(self, chain, scenes, action_singing, action_intro, vocal_start_sec, vocals=None,
-            vocal_threshold_db=-40.0, min_vocal_ratio=0.2):
+            vocal_threshold_db=-40.0, min_vocal_ratio=0.2, force_intro_clips="", force_singing_clips=""):
         blocks = self._split_scenes(scenes)
         if not blocks:
             raise ValueError("Scene Prompt: 'scenes' is empty")
@@ -838,11 +859,18 @@ class LTXChainScenePrompt:
         if vocals is not None:
             ratio = LTXChainPromptSwitch._vocal_ratio(vocals, vocal_threshold_db)
             singing = singing and ratio >= min_vocal_ratio
+        # manual override by clip number (1-based, as in the log / clip_NNN.mp4)
+        clip_no = chain["index"] + 1
+        forced = ""
+        if clip_no in self._clip_list(force_intro_clips):
+            singing, forced = False, " (forced intro)"
+        elif clip_no in self._clip_list(force_singing_clips):
+            singing, forced = True, " (forced singing)"
         action = action_singing if singing or not action_intro.strip() else action_intro
         prompt = scene_text + ("\n\n" + action.strip() if action.strip() else "")
 
         msg = (f"clip {chain['index'] + 1}/{chain['total']}: scene {idx % len(blocks) + 1}/{len(blocks)}"
-               f"{' (new scene)' if chain.get('scene_start') else ''}, {'singing' if singing else 'intro'} "
+               f"{' (new scene)' if chain.get('scene_start') else ''}, {'singing' if singing else 'intro'}{forced} "
                f"({start:.1f}-{end:.1f}s, vocal ratio {ratio:.2f})")
         logging.info("[LTX Chain] " + msg)
         try:

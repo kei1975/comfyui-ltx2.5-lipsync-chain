@@ -297,6 +297,8 @@ State に `resolution` を追加。LTX-2.5 が安全に出せる 64 の倍数プ
 - Step で「weight is on cpu, other tensors on cuda:0」: ReActor の出力が CUDA テンソルで KeepMouth 経由で handoff_images に
   入り、`_normalize_color` の CPU カーネルと衝突。KeepMouth 出力を .cpu()、Step で handoff_images.cpu()、
   `_normalize_color` はカーネル・参照を frames.device に置くよう修正
+- v14 clip 19: 間奏なのに vocal ratio 0.32（歌声分離への楽器漏れ）で singing 判定。Scene Prompt に `force_intro_clips` /
+  `force_singing_clips`（クリップ番号、範囲可、`_clip_list`）を追加して自動判定を上書き。ログに (forced intro) と出る
 
 ## 9. このフォルダの中身（Video-Sticher プロジェクト内のバックアップ）
 
