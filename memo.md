@@ -307,6 +307,10 @@ State に `resolution` を追加。LTX-2.5 が安全に出せる 64 の倍数プ
   Latent Anchor Aware（推論時正則化、attn1 出力を中盤ステップのスナップショットへ引き戻す）は試す価値ありとして
   `…AUTO+ReActor+Anchor.json` を作成（Stage 1 guider の直前、sigmas=ManualSigmas(63)、ref=開始画像、strength 0.10、
   cache_at_step 3）。custom_nodes/10S_Nodes にインストール（clone は http.sslBackend=schannel が必要だった）
+- 歩く速さ: 決めるのはプロンプトの副詞（主）＞ 音声条件（beat 系の文言で寄る）＞ hand-off の引き継ぎ。Auto Scenes に
+  `motion_speed`（`MOTION_SPEEDS`: very slow / slow / normal / brisk / fast / on the beat / half-time / double-time）。
+  選ぶとプリセット文の slowly / steadily / at a steady pace（`SPEED_WORDS`）を除去してから pace 句を末尾に付ける。
+  none / standing still / sitting では無視
 
 ## 9. このフォルダの中身（Video-Sticher プロジェクト内のバックアップ）
 

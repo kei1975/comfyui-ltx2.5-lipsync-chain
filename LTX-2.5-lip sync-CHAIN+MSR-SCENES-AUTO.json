@@ -10162,7 +10162,8 @@
         "none",
         "random (about a third)",
         "",
-        "wide"
+        "wide",
+        "auto (as written)"
       ],
       "widgets_values_named": {
         "num_scenes": 4,
@@ -10191,7 +10192,8 @@
         "vfx": "none",
         "vfx_when": "random (about a third)",
         "vfx_custom": "",
-        "framing_limit": "wide"
+        "framing_limit": "wide",
+        "motion_speed": "auto (as written)"
       },
       "color": "#2a3f2a",
       "bgcolor": "#38513a"

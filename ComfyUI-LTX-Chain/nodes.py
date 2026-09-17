@@ -1166,6 +1166,21 @@ class LTXChainAutoScenes:
         "random (one scene)": lambda n, r: {r.randrange(n)},
     }
 
+    # pace of a moving motion. The presets say "slowly" / "steady pace" themselves, so when a speed
+    # is chosen those words are stripped first and the pace sentence is appended instead.
+    MOTION_SPEEDS = {
+        "auto (as written)": "",
+        "very slow": "at a very slow, unhurried pace, each step deliberate and drawn out",
+        "slow": "at a slow, relaxed pace",
+        "normal": "at a normal, natural walking pace",
+        "brisk": "at a brisk, purposeful pace with quick steps",
+        "fast": "at a fast pace, hurrying, quick energetic steps",
+        "on the beat": "with every step landing exactly on the beat of the music, the pace locked to the song's tempo",
+        "half-time": "with a step on every other beat, a slow groove at half the song's tempo",
+        "double-time": "with two quick steps per beat, the pace driven by the song's rhythm",
+    }
+    SPEED_WORDS = (" slowly and steadily", " slowly", " steadily", " at a steady pace", " lightly", " relaxed steady", " relaxed")
+
     # height / body build: the adjective that goes into the "(a tall, slim 25-year-old Japanese woman)" tag,
     # plus a short body sentence so full-body angles keep the proportions
     # (tag adjective, body description). "tall" alone means nothing in a lone shot with no reference
@@ -1411,6 +1426,8 @@ class LTXChainAutoScenes:
                                "tooltip": "任意。効果を自由記述（英語推奨。例: paper talismans (ofuda) falling from above / a dragon made of smoke coiling behind the singer）。空なら上の vfx を使用"}),
                 "framing_limit": (cls.FRAMING_LIMITS, {"default": "wide",
                                   "tooltip": "一番引いた構図をどこまで許すか（ズームアウトの上限）。これより広い内蔵アングルはローテーションから外れます（close-up=顔アップまで / chest-up=胸上まで / waist-up=腰上まで / mid-thigh=膝上まで / full body / wide=制限なし）。顔の崩れは「出力フレーム内の顔の画素数」で決まり、目安は顔の高さ ≥120px 安定 / 90〜120px 境界 / <90px 崩れやすい（Stage 1 は半分の解像度、VAE は 32px=1セル）。State の解像度と合わせた推定値がノード下部に表示されます。extra_cameras の自作アングルは対象外"}),
+                "motion_speed": (list(cls.MOTION_SPEEDS.keys()), {"default": "auto (as written)",
+                                 "tooltip": "歩く・走る・踊るときの速さ。auto=プリセットの文のまま（walking は slowly） / very slow / slow / normal / brisk=速歩き / fast / on the beat=拍に足を合わせる / half-time=2拍に1歩 / double-time=1拍に2歩。LTX は音声も見ているので beat 系は曲のテンポに寄ります。速さは hand-off で次クリップに引き継がれます。motion が none / standing still / sitting のときは無視"}),
             },
             "optional": {
                 "chain": (CHAIN_TYPE, {"tooltip": "任意。ログ用"}),
@@ -1432,10 +1449,10 @@ class LTXChainAutoScenes:
         return ["", "", "two", "three", "four", "five", "six", "seven", "eight"][n] if 0 <= n <= 8 else str(n)
 
     @classmethod
-    def _cache_path(cls, image, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide"):
+    def _cache_path(cls, image, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", motion_speed="auto (as written)"):
         d = os.path.join(_chains_root(), "_autoprompt")
         os.makedirs(d, exist_ok=True)
-        key = f'{style}|n{num_singers}|e{ethnicity}|p{performance}|a{age}|c{extra_cameras}|m{microphone}|g{gender}|x{emotion}|xc{emotion_custom}|v{motion}|vc{motion_custom}|h{height}|b{build}|k{camera}|kc{camera_custom}|o{outfit}|l{look}|li{lighting}|s{setting}|w{weather}|ww{weather_when}|f{vfx}|fw{vfx_when}|fc{vfx_custom}|fr{framing_limit}'
+        key = f'{style}|n{num_singers}|e{ethnicity}|p{performance}|a{age}|c{extra_cameras}|m{microphone}|g{gender}|x{emotion}|xc{emotion_custom}|v{motion}|vc{motion_custom}|h{height}|b{build}|k{camera}|kc{camera_custom}|o{outfit}|l{look}|li{lighting}|s{setting}|w{weather}|ww{weather_when}|f{vfx}|fw{vfx_when}|fc{vfx_custom}|fr{framing_limit}|ms{motion_speed}'
         return os.path.join(d, f"scenes_{cls._key(image, num_scenes, key)}.json")
 
     @staticmethod
@@ -1467,8 +1484,8 @@ class LTXChainAutoScenes:
         t = t.rstrip(". ").strip()
         return t[0].lower() + t[1:] if t else t
 
-    def check_lazy_status(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", chain=None):
-        if os.path.isfile(self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom, framing_limit)):
+    def check_lazy_status(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", motion_speed="auto (as written)", chain=None):
+        if os.path.isfile(self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom, framing_limit, motion_speed)):
             return []
         return ["caption"]
 
@@ -1573,7 +1590,7 @@ class LTXChainAutoScenes:
         low = f" {desc.lower()} "
         return any(w in low for w in cls.MIC_WORDS)
 
-    def _build(self, image, num_scenes, style, caption, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide"):
+    def _build(self, image, num_scenes, style, caption, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", motion_speed="auto (as written)"):
         desc = self._clean_caption(caption)
         mic = self._wants_mic(microphone, desc)
         hgt, hdesc = self.HEIGHTS.get(height, ("", ""))
@@ -1585,6 +1602,15 @@ class LTXChainAutoScenes:
         if self._no_smile(emotion, emotion_custom):
             desc = self._strip_smile(desc)
         mot_sing, mot_listen, cam_note = self._motion(motion, motion_custom)
+        pace = self.MOTION_SPEEDS.get(motion_speed, "")
+        if pace and mot_sing and motion not in ("none", "standing still", "sitting"):
+            for wd in self.SPEED_WORDS:
+                mot_sing = mot_sing.replace(wd, "")
+                mot_listen = mot_listen.replace(wd, "")
+            mot_sing = mot_sing.replace("  ", " ").strip() + f", {pace}"
+            mot_listen = mot_listen.replace("  ", " ").strip() + f", {pace}"
+            if cam_note:  # the follow camera keeps whatever pace the singer has
+                cam_note = cam_note.replace("at the same pace", "at exactly the singer's pace").replace("at the same speed", "at exactly the singer's speed")
         if gender in ("female", "male"):
             desc = self._force_gender(desc, gender)
             g = gender
@@ -1721,16 +1747,17 @@ class LTXChainAutoScenes:
                 "motion": (motion_custom.strip() or motion), "height": height, "build": build,
                 "camera": (camera_custom.strip() or camera), "outfit": outfit_txt,
                 "look": look, "lighting": lighting, "setting": setting, "weather": weather, "weather_when": weather_when,
-                "vfx": (vfx_custom.strip() or vfx), "vfx_when": vfx_when, "framing_limit": framing_limit}
+                "vfx": (vfx_custom.strip() or vfx), "vfx_when": vfx_when, "framing_limit": framing_limit,
+                "motion_speed": motion_speed}
 
-    def run(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", chain=None):
-        path = self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom, framing_limit)
+    def run(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", motion_speed="auto (as written)", chain=None):
+        path = self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom, framing_limit, motion_speed)
         clip = (chain.get("index", 0) + 1) if chain else 1
         if os.path.isfile(path):
             data = json.load(open(path, encoding="utf-8"))
             logging.info(f"[LTX Chain] clip {clip}: using cached auto-scenes {os.path.basename(path)}")
         else:
-            data = self._build(image, num_scenes, style, caption or "", num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom, framing_limit)
+            data = self._build(image, num_scenes, style, caption or "", num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom, framing_limit, motion_speed)
             json.dump(data, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
             logging.info(f"[LTX Chain] clip {clip}: analysed image -> auto-scenes cached ({os.path.basename(path)}), "
                          f"microphone={microphone} -> {'in frame' if data.get('microphone') else 'none'}, "
