@@ -13,6 +13,11 @@ A set of custom ComfyUI nodes + workflows that chain LTX‑2.5 into a self‑con
 
 ## 🎬 Sample videos / サンプル動画
 
+
+https://github.com/user-attachments/assets/1c813e07-59bc-4b53-a705-99470cce31ac
+
+
+
 Sample files are in [`videos/`](videos/) — click a file on GitHub to play it. / サンプル動画は [`videos/`](videos/) にあります（GitHub 上でファイルを開くと再生できます）。
 
 > The clips have rough spots — they're here to show how much you can get from **just one photo + one audio file in a single Run**, not as a finished edit.
