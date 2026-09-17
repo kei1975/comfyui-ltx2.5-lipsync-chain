@@ -265,6 +265,15 @@ State に `resolution` を追加。LTX-2.5 が安全に出せる 64 の倍数プ
 - State: `resolution` にテスト用小サイズ（448x832 / 384x704 / 448x576 / 512x512 / 832x448 / 704x384、いずれも 64 倍数）。
   `web/resolution_notice.js` が (test) 選択時に app.ui.dialog で注意を表示（通常→test に切り替えた時だけ）
 - State: `scene_switching`（BOOLEAN、末尾に追加＝widgets_values の位置ずれ回避）。OFF で cuts/clips_per_scene を無視し 1 シーン
+- 前作の背景が出た件: 原因は Auto Scenes の `style` 欄に残っていた「post-apocalyptic … ruined-city」。作品を変えるときは
+  開始画像・mp3・REF・style の 4 点を見直す
+- Auto Scenes `outfit`: 参照が太ももで切れると膝下を勝手に補完（短パン化）→ 服装の補足文を人物ブロックに追加し
+  「The full outfit, including the legs and shoes, stays exactly the same…」で固定。jeans/pants を書くと caption の shorts を除去。
+  Florence の text_input は more_detailed_caption では無視されるので使わない
+- Auto Scenes `look` / `lighting` / `setting` プリセット（`LOOKS` / `LIGHTINGS` / `SETTINGS`）: 末尾 = look, lighting, style の順で
+  結合。setting を写真以外にすると人物ブロックの「and the setting stay the same」を「Setting: …, replacing the background of
+  the reference photo」に置換。既定は custom / auto なので既存ワークフローの挙動は不変。`art("")` が "an" を返す
+  バグ（an duet）も修正
 
 ## 9. このフォルダの中身（Video-Sticher プロジェクト内のバックアップ）
 

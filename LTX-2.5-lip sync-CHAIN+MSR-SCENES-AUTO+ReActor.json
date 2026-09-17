@@ -10156,7 +10156,11 @@
         "none",
         "none",
         "auto",
-        ""
+        "",
+        "",
+        "custom (style text only)",
+        "auto (from photo)",
+        "auto (from photo)"
       ],
       "widgets_values_named": {
         "num_scenes": 4,
@@ -10175,7 +10179,11 @@
         "height": "none",
         "build": "none",
         "camera": "auto",
-        "camera_custom": ""
+        "camera_custom": "",
+        "outfit": "",
+        "look": "custom (style text only)",
+        "lighting": "auto (from photo)",
+        "setting": "auto (from photo)"
       },
       "color": "#2a3f2a",
       "bgcolor": "#38513a"

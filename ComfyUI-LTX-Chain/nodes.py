@@ -985,6 +985,73 @@ class LTXChainAutoScenes:
                       "tear", "cry", "lonely", "somber", "sombre", "gloomy", "solemn", "not smiling", "no smile",
                       "unsmiling")
 
+    # look (colour grade / film look), lighting and setting presets. They are composed with the free
+    # `style` text into the tail that every scene prompt ends with; `setting` also rewrites the
+    # "setting stays the same as the reference" sentence, since it deliberately replaces the photo's.
+    LOOKS = {
+        "custom (style text only)": "",
+        "natural color film": "photorealistic, cinematic, natural film-like color, realistic skin and fabric texture, "
+                              "subtle film grain",
+        "warm cinematic": "photorealistic, cinematic, warm amber color grade, golden highlights, soft contrast, "
+                          "realistic skin and fabric texture, subtle film grain",
+        "cool cinematic": "photorealistic, cinematic, cool teal-and-blue color grade, clean highlights, realistic "
+                          "skin and fabric texture, subtle film grain",
+        "teal and orange": "photorealistic, cinematic teal-and-orange color grade, warm skin tones against cool "
+                           "shadows, realistic skin and fabric texture, subtle film grain",
+        "black and white": "photorealistic, cinematic black-and-white, rich monochrome tones with deep blacks and soft "
+                           "highlights, fine film grain, realistic skin and fabric texture",
+        "vintage 70s film": "photorealistic, vintage 1970s film look, faded warm colors, soft halation, gentle grain, "
+                            "slightly lifted blacks, realistic skin and fabric texture",
+        "90s music video": "photorealistic, 1990s music video look, punchy saturated color, slight softness, film "
+                           "grain, realistic skin and fabric texture",
+        "high-key clean": "photorealistic, clean bright high-key look, soft even light, low contrast, pastel-leaning "
+                          "color, realistic skin and fabric texture",
+        "moody low-key": "photorealistic, moody low-key cinematic look, deep shadows, restrained color, high "
+                         "contrast, fine film grain, realistic skin and fabric texture",
+        "neon night": "photorealistic, cinematic neon-lit night look, magenta and cyan highlights, glossy "
+                      "reflections, deep shadows, realistic skin and fabric texture",
+        "glossy commercial": "photorealistic, glossy high-end commercial look, crisp detail, polished color, clean "
+                             "highlights, realistic skin and fabric texture",
+        "documentary": "photorealistic, natural documentary look, unpolished true-to-life color, available light, "
+                       "realistic skin and fabric texture",
+    }
+    LIGHTINGS = {
+        "auto (from photo)": "",
+        "soft key light": "soft key light on the face, gentle fill, the background a little darker than the face",
+        "warm tungsten studio": "warm amber tungsten studio lighting, soft key light on the face, warm practical "
+                                "lights glowing in the background",
+        "studio softbox": "large softbox studio lighting, even soft light on the face, clean gentle shadows",
+        "golden hour": "golden hour sunlight, a warm low sun from the side, long soft shadows",
+        "overcast daylight": "soft overcast daylight, diffuse even light, no hard shadows",
+        "window light": "soft natural window light from one side, gentle falloff into shadow",
+        "dramatic side light": "dramatic single-source side light, half of the face in shadow, strong contrast",
+        "backlight rim": "backlight with a rim of light outlining the hair and shoulders, soft fill on the face",
+        "stage spotlight": "a stage spotlight from above, the singer bright against a dark background, haze in "
+                           "the beam",
+        "neon": "neon lights from the sides, magenta and cyan colored light on the face and hair",
+        "candles / practicals": "warm practical lamps and candles, a soft flickering glow on the face",
+    }
+    SETTINGS = {
+        "auto (from photo)": "",
+        "recording studio": "a professional recording studio with a mixing console, studio monitor speakers and "
+                            "acoustic panels softly out of focus in the background",
+        "plain studio backdrop": "a plain seamless studio backdrop, nothing else in the background",
+        "white cyclorama": "a bright white cyclorama studio, seamless white all around",
+        "concert stage": "a concert stage at night with stage lights, haze and a dark audience area behind",
+        "small club stage": "a small live-house club stage with a brick wall, amps and colored stage lights",
+        "empty theater": "an empty old theater with red velvet seats out of focus behind",
+        "rooftop city": "a city rooftop with the skyline and city lights in the background",
+        "street at night": "a city street at night with shop lights, wet asphalt reflections and passing lights",
+        "neon alley": "a narrow alley lit by neon signs, wet ground reflections",
+        "bedroom": "a cozy bedroom with a window, warm lamp light and posters on the wall",
+        "loft apartment": "a bright loft apartment with large windows and exposed brick",
+        "rainy window": "indoors by a large rain-streaked window, blurred city lights outside",
+        "classic bar": "a classic dim bar with a wooden counter and bottles glowing behind",
+        "abandoned warehouse": "a large abandoned warehouse with dusty beams of light through high windows",
+        "forest": "a forest clearing with soft light filtering through the trees",
+        "beach sunset": "a beach at sunset with the sea and the sky behind",
+    }
+
     # height / body build: the adjective that goes into the "(a tall, slim 25-year-old Japanese woman)" tag,
     # plus a short body sentence so full-body angles keep the proportions
     # (tag adjective, body description). "tall" alone means nothing in a lone shot with no reference
@@ -1169,7 +1236,7 @@ class LTXChainAutoScenes:
                 "performance": (["subtle", "restrained", "natural", "expressive"], {"default": "restrained",
                                 "tooltip": "歌い方の強さ。subtle=控えめ（口を大きく開けない）/ restrained=抑えめ（既定・大げさ防止）/ natural=自然 / expressive=感情的。LTX は口を開けすぎる癖があるので既定は抑えめ"}),
                 "style": ("STRING", {"multiline": True, "default": "photorealistic, cinematic, natural film-like color",
-                                     "tooltip": "全シーン共通で足したい雰囲気（照明・質感など）。※全シーンに付くので、カメラアングルはここに書かない"}),
+                                     "tooltip": "全シーン共通で足したい雰囲気（自由記述）。下の look / lighting / setting プリセットの後ろに足されます。プリセットを使うならここは空か短い補足で OK。※全シーンに付くので、カメラアングルはここに書かない"}),
                 "extra_cameras": ("STRING", {"multiline": True, "default": "",
                                              "tooltip": "任意。自分で足したいカメラアングルを1行に1つ（例: profile shot from the side, 85mm, the microphone between her and the camera）。ここに書いた分がシーンのローテーションに追加され、時々そのアングルになります。空なら既定の雛形だけ"}),
                 "microphone": (["auto", "yes", "no"], {"default": "auto",
@@ -1195,6 +1262,14 @@ class LTXChainAutoScenes:
                            "tooltip": "カメラワーク（全アングル共通）。auto=固定（歩く系 motion のときは追従）/ locked=固定 / slow push-in=ゆっくり寄る / slow pull-out=ゆっくり引く / dolly left・right=横にスライド / orbit=人物の周りを回る / crane up・down=上昇・下降 / handheld=手持ちの揺れ / follow=人物を追う / mix=シーンごとに違う動きを順番に割り当て（固定 / 横ドリー / 手持ち / オービット / クレーン。歩く系 motion のときは追従 / 手持ち / 横ドリーのみ）。※push-in / pull-out は同じシーン内でクリップをまたいで蓄積し、人物が小さくなると体型も崩れるので、明示的に選んだときだけ・clips_per_scene=1 で。下の camera_custom に書くとそちらが優先"}),
                 "camera_custom": ("STRING", {"default": "",
                                   "tooltip": "任意。カメラワークを自由記述（英語推奨。例: slow lateral dolly from left to right, 50mm, the singer stays centred）。全アングルの「Camera locked.」と置き換わります。空なら上の camera を使用"}),
+                "outfit": ("STRING", {"default": "", "multiline": True,
+                                      "tooltip": "任意。服装の補足（英語推奨）。参照画像に写っていない部分を明示するのに使う。例: full-length dark blue denim jeans down to the ankles, white sneakers。ここに書いた文が人物説明に足され、全シーンで固定されます。参照が太ももで切れているとモデルは膝下を勝手に補う（短パンになる等）ので、脚・靴まで書くのがコツ。jeans/pants を書くと説明文中の shorts は除去"}),
+                "look": (list(cls.LOOKS.keys()), {"default": "custom (style text only)",
+                         "tooltip": "画調のプリセット。natural color film=自然なカラー / warm cinematic=暖色シネマ / cool cinematic=寒色シネマ / teal and orange / black and white=白黒 / vintage 70s film / 90s music video / high-key clean=明るく清潔 / moody low-key=暗く重厚 / neon night / glossy commercial=広告風 / documentary。custom = プリセットなし（style 欄の文だけ）。選んだ文の後ろに style 欄の文が足されます"}),
+                "lighting": (list(cls.LIGHTINGS.keys()), {"default": "auto (from photo)",
+                             "tooltip": "照明のプリセット。auto=写真の説明に任せる / soft key light / warm tungsten studio=暖色スタジオ / studio softbox / golden hour / overcast daylight / window light / dramatic side light / backlight rim / stage spotlight / neon / candles"}),
+                "setting": (list(cls.SETTINGS.keys()), {"default": "auto (from photo)",
+                            "tooltip": "舞台（背景）のプリセット。auto=写真の背景のまま。それ以外を選ぶと「写真の背景の代わりにこの舞台」として全シーンに入ります（recording studio / plain backdrop / white cyclorama / concert stage / club stage / theater / rooftop / street at night / neon alley / bedroom / loft / rainy window / bar / warehouse / forest / beach）"}),
             },
             "optional": {
                 "chain": (CHAIN_TYPE, {"tooltip": "任意。ログ用"}),
@@ -1216,10 +1291,10 @@ class LTXChainAutoScenes:
         return ["", "", "two", "three", "four", "five", "six", "seven", "eight"][n] if 0 <= n <= 8 else str(n)
 
     @classmethod
-    def _cache_path(cls, image, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom=""):
+    def _cache_path(cls, image, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)"):
         d = os.path.join(_chains_root(), "_autoprompt")
         os.makedirs(d, exist_ok=True)
-        key = f'{style}|n{num_singers}|e{ethnicity}|p{performance}|a{age}|c{extra_cameras}|m{microphone}|g{gender}|x{emotion}|xc{emotion_custom}|v{motion}|vc{motion_custom}|h{height}|b{build}|k{camera}|kc{camera_custom}'
+        key = f'{style}|n{num_singers}|e{ethnicity}|p{performance}|a{age}|c{extra_cameras}|m{microphone}|g{gender}|x{emotion}|xc{emotion_custom}|v{motion}|vc{motion_custom}|h{height}|b{build}|k{camera}|kc{camera_custom}|o{outfit}|l{look}|li{lighting}|s{setting}'
         return os.path.join(d, f"scenes_{cls._key(image, num_scenes, key)}.json")
 
     @staticmethod
@@ -1251,8 +1326,8 @@ class LTXChainAutoScenes:
         t = t.rstrip(". ").strip()
         return t[0].lower() + t[1:] if t else t
 
-    def check_lazy_status(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", chain=None):
-        if os.path.isfile(self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom)):
+    def check_lazy_status(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", chain=None):
+        if os.path.isfile(self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting)):
             return []
         return ["caption"]
 
@@ -1357,7 +1432,7 @@ class LTXChainAutoScenes:
         low = f" {desc.lower()} "
         return any(w in low for w in cls.MIC_WORDS)
 
-    def _build(self, image, num_scenes, style, caption, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom=""):
+    def _build(self, image, num_scenes, style, caption, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)"):
         desc = self._clean_caption(caption)
         mic = self._wants_mic(microphone, desc)
         hgt, hdesc = self.HEIGHTS.get(height, ("", ""))
@@ -1386,11 +1461,28 @@ class LTXChainAutoScenes:
             clause = (clause.replace("barely any head or body movement", "barely any head movement")
                             .replace("the head moving only softly with the melody, small gentle gestures",
                                      "the head moving only softly with the melody"))
-        art = lambda t: ("an" if t[:1].lower() in "aeiou" and not t[:1].isdigit() else "a")
+        art = lambda t: ("an" if t[:1] and t[:1].lower() in "aeiou" else "a")  # "" -> "a" (a duet)
         # only lock "glasses" when the reference actually has eyewear, otherwise the word itself
         # makes the model add glasses to a person who has none
         has_eyewear = any(w in desc.lower() for w in ("glass", "eyewear", "sunglass", "spectacle", "goggle"))
         feat = "face, hair, glasses, clothing" if has_eyewear else "face, hair, clothing"
+        # outfit: what the reference does not show (legs, shoes) has to be spelled out, or the model
+        # invents it - a photo cropped at the thigh comes back as shorts. Words that contradict the
+        # given outfit are dropped from the caption.
+        outfit_txt = " ".join((outfit or "").split()).strip().rstrip(".")
+        if outfit_txt:
+            low = outfit_txt.lower()
+            if any(w in low for w in ("jeans", "pants", "trousers", "slacks", "long skirt", "full-length", "ankle")):
+                desc = re.sub(r",?\s*(?:and\s+)?(?:denim\s+|jean\s+|short\s+)?(?:shorts|short pants|hot pants|cut-offs|cutoffs)\b", "", desc, flags=re.I)
+                desc = re.sub(r"\s{2,}", " ", desc).replace(" ,", ",").strip()
+            outfit_lock = (f" Outfit: {outfit_txt}. The full outfit, including the legs and shoes, stays exactly "
+                           f"the same in every shot and in every framing.")
+        else:
+            outfit_lock = ""
+        # setting preset: the scene deliberately replaces the photo's background
+        set_txt = self.SETTINGS.get(setting, "")
+        set_lock = (f" Setting: {set_txt}, replacing the background of the reference photo; the same setting in "
+                    f"every shot.") if set_txt else ""
         # "(a 25-year-old Japanese woman)" — the noun follows the gender; only written out when
         # the user forced a gender or gave age/ethnicity, so an unlabelled caption stays untouched
         noun = {"female": "woman", "male": "man"}.get(g, "person")
@@ -1410,8 +1502,9 @@ class LTXChainAutoScenes:
             who = body + " ".join(x for x in (agep, eth) if x)
             who = who.strip()
             tag = f" ({art(who or noun)} {who + ' ' if who else ''}{noun})" if (who or gtag) else ""
-            character = (f"Image 1 is the singer{tag}: {desc}. The singer's {feat} and the "
-                         f"setting stay exactly the same as in the reference image in every shot.{age_lock}{body_lock}")
+            feat_s = (feat.rsplit(", ", 1)[0] + " and " + feat.rsplit(", ", 1)[1]) if set_txt else feat
+            character = (f"Image 1 is the singer{tag}: {desc}. The singer's {feat_s}{'' if set_txt else ' and the setting'} "
+                         f"stay exactly the same as in the reference image in every shot.{set_lock}{outfit_lock}{age_lock}{body_lock}")
         else:
             word = self._num_word(ns)
             pre = body + " ".join(x for x in (agep, eth, gtag) if x)
@@ -1420,8 +1513,8 @@ class LTXChainAutoScenes:
             group = f"{art(pre)} {pre}duet" if ns == 2 else f"a group of {word} {pre}singers"
             allof = "Both of them" if ns == 2 else f"All {word} of them"
             character = (f"Image 1 shows the {word} singers ({group}): {desc}. {allof} appear together "
-                         f"in every shot; their faces, hair, clothing and the setting stay exactly the same as in "
-                         f"the reference image.{age_lock}{body_lock}")
+                         f"in every shot; their faces, hair{' and' if set_txt else ','} clothing{'' if set_txt else ' and the setting'} stay exactly the same as in "
+                         f"the reference image.{set_lock}{outfit_lock}{age_lock}{body_lock}")
         # camera move: custom text > preset > the follow-camera a moving motion asks for > locked (None)
         cc = " ".join((camera_custom or "").split()).strip()
         if cc:
@@ -1438,7 +1531,10 @@ class LTXChainAutoScenes:
         tail_cam = "" if cam_move in (None, "mix") else (" Camera: " + cam_move[0].lower() + cam_move[1:])
         act_sing = self._sing(ns, clause, mic, emo_sing, mot_sing) + tail_cam
         act_intro = self._intro(ns, mic, emo_listen, mot_listen) + tail_cam
-        tail = ("\n\n" + style.strip()) if style.strip() else ""
+        # look + lighting presets + free style text -> the tail of every scene prompt
+        parts = [self.LOOKS.get(look, ""), self.LIGHTINGS.get(lighting, ""), style.strip()]
+        tail_txt = ", ".join(x.strip().rstrip(",.") for x in parts if x and x.strip())
+        tail = ("\n\n" + tail_txt) if tail_txt else ""
         # camera rotation = the first `num_scenes` built-in angles + any custom angles the user added
         extras = [ln.strip() for ln in (extra_cameras or "").replace("\r", "").split("\n") if ln.strip()]
         base = self.CAMERAS_MIC if mic else self.CAMERAS_NOMIC
@@ -1460,16 +1556,17 @@ class LTXChainAutoScenes:
                 "action_singing": act_sing, "action_intro": act_intro, "microphone": bool(mic),
                 "gender": g or "unknown", "emotion": (emotion_custom.strip() or emotion),
                 "motion": (motion_custom.strip() or motion), "height": height, "build": build,
-                "camera": (camera_custom.strip() or camera)}
+                "camera": (camera_custom.strip() or camera), "outfit": outfit_txt,
+                "look": look, "lighting": lighting, "setting": setting}
 
-    def run(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", chain=None):
-        path = self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom)
+    def run(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", chain=None):
+        path = self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting)
         clip = (chain.get("index", 0) + 1) if chain else 1
         if os.path.isfile(path):
             data = json.load(open(path, encoding="utf-8"))
             logging.info(f"[LTX Chain] clip {clip}: using cached auto-scenes {os.path.basename(path)}")
         else:
-            data = self._build(image, num_scenes, style, caption or "", num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom)
+            data = self._build(image, num_scenes, style, caption or "", num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting)
             json.dump(data, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
             logging.info(f"[LTX Chain] clip {clip}: analysed image -> auto-scenes cached ({os.path.basename(path)}), "
                          f"microphone={microphone} -> {'in frame' if data.get('microphone') else 'none'}, "
