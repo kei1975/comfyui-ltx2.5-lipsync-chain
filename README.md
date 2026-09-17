@@ -13,19 +13,21 @@ A set of custom ComfyUI nodes + workflows that chain LTX‑2.5 into a self‑con
 
 ## 🎬 Sample videos / サンプル動画
 
-Preview below is compressed to **480p**. Sample files are in [`videos/`](videos/).
-下のプレビューは **480p** 圧縮版です。サンプル動画は [`videos/`](videos/) にあります。
+Sample files are in [`videos/`](videos/) — click a file on GitHub to play it. / サンプル動画は [`videos/`](videos/) にあります（GitHub 上でファイルを開くと再生できます）。
 
 > The clips have rough spots — they're here to show how much you can get from **just one photo + one audio file in a single Run**, not as a finished edit.
 > クリップには粗い箇所もありますが、これは **写真1枚と音源1つだけ・一回の実行**でここまで作れるという趣旨のデモで、完成品ではありません。
 
 **Paris d'avant** — pink‑glasses singer / ピンク眼鏡, 3:10 · exported at **512 × 896 px** / 書き出しサイズ 512×896 · preview 274 × 480
 
-<video src="videos/paris-davant-480p.mp4" controls width="360"></video>
+<!-- GitHub only plays videos attached through its web editor (user-attachments), not files from the repo.
+     To embed: edit this README on GitHub and drag one of videos/github-upload/*.mp4 (< 10 MB) here. -->
 
-<sub>If the player doesn't load / 再生されない場合: <a href="videos/paris-davant-480p.mp4">480p (portrait)</a> · <a href="videos/Paris%20d%27avant-final_3-comp.mp4">full size 512×896</a></sub>
+[![Paris d'avant — click to play / クリックで再生](docs/example-output.jpg)](videos/Paris%20d%27avant-final_3-comp.mp4)
 
-> On GitHub, `.mp4` files play inline once the repo is public. Locally, click the links to open them. / GitHub 上では公開後にインライン再生されます。ローカルではリンクから開いてください。
+<sub><a href="videos/Paris%20d%27avant-final_3-comp.mp4">full size 512×896 (60 MB)</a> · <a href="videos/paris-davant-480p.mp4">480p portrait (17 MB)</a> · <a href="videos/github-upload/">≤ 10 MB versions for embedding</a></sub>
+
+> GitHub strips `<video>` tags from README files, so repo videos open on their own page instead of playing inline. Inline playback only works for videos attached via GitHub's web editor (10 MB limit on free plans) — the `videos/github-upload/` files are made for that. / GitHub は README の `<video>` タグを除去するため、リポジトリ内の動画はインライン再生されません（クリックで別ページ再生）。インライン再生は Web エディタで添付した動画のみ（無料プランは 10 MB まで）。`videos/github-upload/` はそのための小容量版です。
 
 ---
 
