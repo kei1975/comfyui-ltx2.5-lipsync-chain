@@ -17,7 +17,7 @@ A set of custom ComfyUI nodes + workflows that chain LTX‑2.5 into a self‑con
 
 | Full song / フル尺 | Excerpt / 抜粋 |
 |:---:|:---:|
-| https://github.com/user-attachments/assets/a50ca194-2188-425e-9df4-c7d99440204c | https://github.com/user-attachments/assets/1c813e07-59bc-4b53-a705-99470cce31ac |
+| https://github.com/user-attachments/assets/1c813e07-59bc-4b53-a705-99470cce31ac | https://github.com/user-attachments/assets/a50ca194-2188-425e-9df4-c7d99440204c |
 
 <sub>Higher quality files: <a href="videos/Paris%20d%27avant-final_3-comp.mp4">512×896 (60 MB)</a> · <a href="videos/paris-davant-480p.mp4">480p portrait (17 MB)</a> — open on GitHub to play. / 高画質版は <a href="videos/">videos/</a>（GitHub 上で開くと再生）。</sub>
 
