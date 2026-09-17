@@ -299,6 +299,14 @@ State に `resolution` を追加。LTX-2.5 が安全に出せる 64 の倍数プ
   `_normalize_color` はカーネル・参照を frames.device に置くよう修正
 - v14 clip 19: 間奏なのに vocal ratio 0.32（歌声分離への楽器漏れ）で singing 判定。Scene Prompt に `force_intro_clips` /
   `force_singing_clips`（クリップ番号、範囲可、`_clip_list`）を追加して自動判定を上書き。ログに (forced intro) と出る
+- v15（384x704 test tiny）で ReActor アンカーの効果を検証: hand-off は確かに参照顔に置換されているが、clip 2 の頭 9 フレーム
+  だけ顔が変わり、その後 LTX が元（ドリフト済み・金髪）の顔へ戻る。スワップは顔の内側だけで髪や肌は元のままなので矛盾を
+  髪側に合わせて解決している。低解像度（顔 40px）が主因の可能性が高く、512x896 で再テストが必要
+- ID-LoRA（github.com/ID-LoRA/ID-LoRA）は LTX-2/2.3 向けの「声の identity 転写」研究で、visual は first-frame 条件付けのみ
+  → 顔ドリフト対策にはならない。10S-Comfy-nodes（TenStrip）は LTX-2/2.3 向け: Reference 系は MSR と役割重複、
+  Latent Anchor Aware（推論時正則化、attn1 出力を中盤ステップのスナップショットへ引き戻す）は試す価値ありとして
+  `…AUTO+ReActor+Anchor.json` を作成（Stage 1 guider の直前、sigmas=ManualSigmas(63)、ref=開始画像、strength 0.10、
+  cache_at_step 3）。custom_nodes/10S_Nodes にインストール（clone は http.sslBackend=schannel が必要だった）
 
 ## 9. このフォルダの中身（Video-Sticher プロジェクト内のバックアップ）
 

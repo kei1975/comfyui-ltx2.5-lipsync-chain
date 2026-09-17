@@ -126,6 +126,7 @@ flowchart LR
 | `LTX-2.5-lip sync-CHAIN+MSR-SCENES.json` | Adds scene/camera switching + waveform cuts + cross‑fade + redo. / シーン切替＋波形カット＋クロスフェード＋やり直し |
 | `LTX-2.5-lip sync-CHAIN+MSR-SCENES-AUTO.json` | **Fully automatic**: Florence‑2 writes the prompt from the image. Swap image + mp3 and Run. / **全自動**：画像からプロンプト自動生成。画像とmp3を差し替えて Run |
 | `LTX-2.5-lip sync-CHAIN+MSR-SCENES-AUTO+ReActor.json` | AUTO + **face anchor**: ReActor corrects only the 9 hand‑off frames of each clip, so the next clip starts from the reference face while the saved clips stay pure LTX (no swap artefacts, lip sync untouched). Needs `comfyui-reactor`. / AUTO＋**顔アンカー**：各クリップの hand‑off 9 フレームだけ ReActor で顔を戻し、次クリップを正しい顔から生成。保存クリップは LTX のまま |
+| `LTX-2.5-lip sync-CHAIN+MSR-SCENES-AUTO+ReActor+Anchor.json` | Experimental: AUTO+ReActor plus a **10S Latent Anchor Aware** patch on the stage‑1 sampler (inference‑time regularizer against in‑clip identity drift). Needs [10S‑Comfy‑nodes](https://github.com/TenStrip/10S-Comfy-nodes); built for LTX‑2/2.3, untested on 2.5 — set `bypass` if it errors. / 実験: Stage 1 に 10S Latent Anchor を追加（クリップ内の顔ドリフト抑制）。要 10S ノード |
 | `ReActor-post-process-video.json` | Face swap on a finished video (path → ReActor → keep‑mouth composite → mp4, 240 frames per batch). Output goes to `LTX2.5Chains/<session>-final_face/`. / 完成動画への後がけ（口は元のまま合成） |
 
 Each workflow puts the controls you touch in a green **"① Inputs & Settings"** panel on the left; the machinery is boxed by step on the right.
