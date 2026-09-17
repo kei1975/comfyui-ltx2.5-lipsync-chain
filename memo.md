@@ -281,6 +281,14 @@ State に `resolution` を追加。LTX-2.5 が安全に出せる 64 の倍数プ
   index の集合を返す（random 系は必ず 1 つ以上、`_key(image, num_scenes, vfx文)` を種にした固定 RNG → redo でも同じシーン）。
   雷・ストロボ・カメラフラッシュは Step の `_normalize_color`（3 フレーム平滑の毎フレーム正規化）に打ち消されるので
   handoff_color_match ≤ 0.3 を案内
+- ズームアウトと顔崩れ: 公式仕様は無いが、決めるのは「出力フレーム内の顔の高さ px」。Stage 1 = 出力の半分、VAE = 32px/セル →
+  出力で顔 120px ≒ Stage 1 で潜在 2 セルが下限（実測: ≥120 安定 / 90-120 境界 / <90 崩れ）。構図別の顔比率
+  `FRAMING_FACE`（close-up .45 / chest-up .30 / waist-up .22 / mid-thigh .15 / full body .10 / wide .06）。
+  Auto Scenes `framing_limit` で内蔵アングル（`ANGLE_FRAMING`）を上限より広いものを除外。`web/framing_notice.js` が
+  State の resolution × framing_limit から推定 px をノード下部に **onDrawForeground で描画**（最初は text ウィジェットにしたら
+  widgets_values の 28 番目に保存されてしまい、将来の入力追加でずれる原因になるので描画方式に変更・保存済み JSON からも除去）
+- motion に `running toward camera` / `jogging toward camera`（カメラ注記: 同速で後退＋手持ち感）。走りの写真を pic1（Stage 1）に
+  すると毎クリップ「走る姿勢」に引き戻されるので走りが止まりにくい（参照のポーズ引力を逆利用）
 
 ## 9. このフォルダの中身（Video-Sticher プロジェクト内のバックアップ）
 

@@ -10165,7 +10165,8 @@
         "all scenes",
         "none",
         "random (about a third)",
-        ""
+        "",
+        "wide"
       ],
       "widgets_values_named": {
         "num_scenes": 4,
@@ -10193,7 +10194,8 @@
         "weather_when": "all scenes",
         "vfx": "none",
         "vfx_when": "random (about a third)",
-        "vfx_custom": ""
+        "vfx_custom": "",
+        "framing_limit": "wide"
       },
       "color": "#2a3f2a",
       "bgcolor": "#38513a"

@@ -912,6 +912,15 @@ class LTXChainAutoScenes:
         "the frame. Camera locked.",
     ]
     CAMERAS = CAMERAS_MIC  # backwards-compatible alias
+    # how wide each built-in angle is (index-aligned with CAMERAS_MIC / CAMERAS_NOMIC) and the
+    # face height each framing leaves in the frame (fraction of the output height, measured on
+    # this project's renders). The face is what breaks first when the shot gets wide: stage 1 runs
+    # at half resolution and the VAE packs 32 px into one latent cell, so a face under ~120 px of
+    # output height (~2 latent cells at stage 1) can no longer be held even with MSR references.
+    ANGLE_FRAMING = ["waist-up", "close-up", "mid-thigh", "chest-up", "close-up"]
+    FRAMING_RANK = {"close-up": 0, "chest-up": 1, "waist-up": 2, "mid-thigh": 3, "full body": 4, "wide": 5}
+    FRAMING_FACE = {"close-up": 0.45, "chest-up": 0.30, "waist-up": 0.22, "mid-thigh": 0.15, "full body": 0.10, "wide": 0.06}
+    FRAMING_LIMITS = ["close-up", "chest-up", "waist-up", "mid-thigh", "full body", "wide"]
     ACTION_SINGING = ("The singer performs the song into the microphone with precise lip sync to the vocals: the "
                       "mouth shapes match every word, natural jaw and lip movement, breaths between phrases, the mouth "
                       "closed during instrumental passages. Restrained emotion in the eyes and brows, the head moving "
@@ -1191,7 +1200,8 @@ class LTXChainAutoScenes:
                   "locked", "crane down"]
     # a walking / strolling singer: only cameras that travel with the singer (orbit / crane contradict it)
     CAMERA_MIX_MOVING = ["follow", "handheld", "dolly left", "follow", "dolly right", "handheld"]
-    MOVING_MOTIONS = ("walking toward camera", "walking sideways", "strolling", "dancing")
+    MOVING_MOTIONS = ("walking toward camera", "running toward camera", "jogging toward camera", "walking sideways",
+                      "strolling", "dancing")
 
     # how the singer moves: (while singing, while listening, camera note or None)
     # the camera note replaces "Camera locked." in the built-in angles so the framing doesn't fight the motion
@@ -1226,6 +1236,18 @@ class LTXChainAutoScenes:
             "walking slowly toward the camera with natural relaxed steps, already mid-stride at the first frame",
             "The camera glides smoothly backward at the same pace as the singer, so the singer stays the same size "
             "and position in the frame, no zoom."),
+        "running toward camera": (
+            "The singer runs straight toward the camera at a steady pace while singing, arms pumping, the clothes "
+            "and hair moving with the run, already mid-stride at the very first frame, no pause and no standing start",
+            "running steadily toward the camera, already mid-stride at the first frame",
+            "The camera races backward at exactly the same speed as the runner, so the singer stays the same size "
+            "and centred in the frame, a slight handheld shake, the street rushing past on both sides, no zoom."),
+        "jogging toward camera": (
+            "The singer jogs lightly toward the camera while singing, relaxed steady strides, the arms swinging, "
+            "already mid-stride at the very first frame, no standing start",
+            "jogging lightly toward the camera, already mid-stride at the first frame",
+            "The camera glides backward at the same pace as the jogger, keeping the singer the same size and "
+            "centred in the frame, a subtle handheld feel, no zoom."),
         "walking sideways": (
             "The singer walks slowly along the scene from one side to the other while singing, natural relaxed steps, "
             "already mid-stride at the very first frame, no pause and no standing start",
@@ -1265,7 +1287,8 @@ class LTXChainAutoScenes:
         emo = f" The performance carries {emo}." if emo else ""
         if mot and ns > 1:
             mot = mot.replace("The singer stays", "The singers stay").replace("The singer walks", "The singers walk") \
-                     .replace("The singer strolls", "The singers stroll").replace("The singer dances", "The singers dance")
+                     .replace("The singer strolls", "The singers stroll").replace("The singer dances", "The singers dance") \
+                     .replace("The singer runs", "The singers run").replace("The singer jogs", "The singers jog")
         emo = emo + (f" {mot}." if mot else "")
         if ns == 1:
             return (f"The singer performs the song {into} with precise lip sync to the vocals: the mouth "
@@ -1323,8 +1346,9 @@ class LTXChainAutoScenes:
                 "emotion_custom": ("STRING", {"default": "",
                                    "tooltip": "任意。感情・表情を自由記述（英語推奨。例: a shy, bashful mood with a small nervous smile）。空なら上の emotion を使用"}),
                 "motion": (["none", "standing still", "gentle sway", "hand gestures", "light dance in place", "dancing",
-                            "walking toward camera", "walking sideways", "strolling", "sitting"], {"default": "none",
-                           "tooltip": "人物の動き。none=指定なし / standing still=その場に立ったまま / gentle sway=その場で軽く揺れる / hand gestures=その場で手振り / light dance in place=その場で軽く踊る / dancing=踊る / walking toward camera=カメラに向かって歩く（カメラは後退追従） / walking sideways=横に歩く（カメラ横追従） / strolling=散歩（カメラ追従） / sitting=座ったまま。歩く・踊る時は microphone=no 推奨。下の motion_custom に書くとそちらが優先"}),
+                            "walking toward camera", "jogging toward camera", "running toward camera", "walking sideways",
+                            "strolling", "sitting"], {"default": "none",
+                           "tooltip": "人物の動き。none=指定なし / standing still=その場に立ったまま / gentle sway=その場で軽く揺れる / hand gestures=その場で手振り / light dance in place=その場で軽く踊る / dancing=踊る / walking toward camera=カメラに向かって歩く（カメラは後退追従） / jogging・running toward camera=カメラに向かって走る（カメラは同速で後退、手持ち感） / walking sideways=横に歩く（カメラ横追従） / strolling=散歩（カメラ追従） / sitting=座ったまま。歩く・踊る時は microphone=no 推奨。下の motion_custom に書くとそちらが優先"}),
                 "motion_custom": ("STRING", {"default": "",
                                   "tooltip": "任意。動きを自由記述（英語推奨。例: The singer slowly turns around and walks away from the camera）。空なら上の motion を使用"}),
                 "height": (["none", "petite", "short", "average height", "tall", "very tall"], {"default": "none",
@@ -1354,6 +1378,8 @@ class LTXChainAutoScenes:
                              "tooltip": "VFX をどのシーンに付けるか。all / 1つおき / 2つおき / 最初だけ / 最後だけ / 最初以外 / random（約半分・約1/3・1シーンだけ）。random は画像とシーン数から決まる固定の並びなので、同じ設定なら redo でも同じシーンに出ます"}),
                 "vfx_custom": ("STRING", {"default": "",
                                "tooltip": "任意。効果を自由記述（英語推奨。例: paper talismans (ofuda) falling from above / a dragon made of smoke coiling behind the singer）。空なら上の vfx を使用"}),
+                "framing_limit": (cls.FRAMING_LIMITS, {"default": "wide",
+                                  "tooltip": "一番引いた構図をどこまで許すか（ズームアウトの上限）。これより広い内蔵アングルはローテーションから外れます（close-up=顔アップまで / chest-up=胸上まで / waist-up=腰上まで / mid-thigh=膝上まで / full body / wide=制限なし）。顔の崩れは「出力フレーム内の顔の画素数」で決まり、目安は顔の高さ ≥120px 安定 / 90〜120px 境界 / <90px 崩れやすい（Stage 1 は半分の解像度、VAE は 32px=1セル）。State の解像度と合わせた推定値がノード下部に表示されます。extra_cameras の自作アングルは対象外"}),
             },
             "optional": {
                 "chain": (CHAIN_TYPE, {"tooltip": "任意。ログ用"}),
@@ -1375,10 +1401,10 @@ class LTXChainAutoScenes:
         return ["", "", "two", "three", "four", "five", "six", "seven", "eight"][n] if 0 <= n <= 8 else str(n)
 
     @classmethod
-    def _cache_path(cls, image, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom=""):
+    def _cache_path(cls, image, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide"):
         d = os.path.join(_chains_root(), "_autoprompt")
         os.makedirs(d, exist_ok=True)
-        key = f'{style}|n{num_singers}|e{ethnicity}|p{performance}|a{age}|c{extra_cameras}|m{microphone}|g{gender}|x{emotion}|xc{emotion_custom}|v{motion}|vc{motion_custom}|h{height}|b{build}|k{camera}|kc{camera_custom}|o{outfit}|l{look}|li{lighting}|s{setting}|w{weather}|ww{weather_when}|f{vfx}|fw{vfx_when}|fc{vfx_custom}'
+        key = f'{style}|n{num_singers}|e{ethnicity}|p{performance}|a{age}|c{extra_cameras}|m{microphone}|g{gender}|x{emotion}|xc{emotion_custom}|v{motion}|vc{motion_custom}|h{height}|b{build}|k{camera}|kc{camera_custom}|o{outfit}|l{look}|li{lighting}|s{setting}|w{weather}|ww{weather_when}|f{vfx}|fw{vfx_when}|fc{vfx_custom}|fr{framing_limit}'
         return os.path.join(d, f"scenes_{cls._key(image, num_scenes, key)}.json")
 
     @staticmethod
@@ -1410,8 +1436,8 @@ class LTXChainAutoScenes:
         t = t.rstrip(". ").strip()
         return t[0].lower() + t[1:] if t else t
 
-    def check_lazy_status(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", chain=None):
-        if os.path.isfile(self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom)):
+    def check_lazy_status(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", chain=None):
+        if os.path.isfile(self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom, framing_limit)):
             return []
         return ["caption"]
 
@@ -1516,7 +1542,7 @@ class LTXChainAutoScenes:
         low = f" {desc.lower()} "
         return any(w in low for w in cls.MIC_WORDS)
 
-    def _build(self, image, num_scenes, style, caption, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom=""):
+    def _build(self, image, num_scenes, style, caption, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide"):
         desc = self._clean_caption(caption)
         mic = self._wants_mic(microphone, desc)
         hgt, hdesc = self.HEIGHTS.get(height, ("", ""))
@@ -1622,7 +1648,15 @@ class LTXChainAutoScenes:
         # camera rotation = the first `num_scenes` built-in angles + any custom angles the user added
         extras = [ln.strip() for ln in (extra_cameras or "").replace("\r", "").split("\n") if ln.strip()]
         base = self.CAMERAS_MIC if mic else self.CAMERAS_NOMIC
-        cams = list(base[:max(1, int(num_scenes))]) + extras
+        limit = self.FRAMING_RANK.get(framing_limit, 99)
+        chosen = [c for c, fr in zip(base[:max(1, int(num_scenes))], self.ANGLE_FRAMING)
+                  if self.FRAMING_RANK.get(fr, 0) <= limit]
+        if not chosen:  # a limit tighter than every selected angle: keep the tightest one
+            chosen = [base[1]]
+        dropped = max(1, int(num_scenes)) - len(chosen)
+        if dropped:
+            logging.info(f"[LTX Chain] framing_limit={framing_limit}: {dropped} built-in angle(s) wider than that dropped")
+        cams = chosen + extras
         if cam_move == "mix":
             moving = motion in self.MOVING_MOTIONS or bool((motion_custom or "").strip())
             mix = self.CAMERA_MIX_MOVING if moving else self.CAMERA_MIX
@@ -1656,16 +1690,16 @@ class LTXChainAutoScenes:
                 "motion": (motion_custom.strip() or motion), "height": height, "build": build,
                 "camera": (camera_custom.strip() or camera), "outfit": outfit_txt,
                 "look": look, "lighting": lighting, "setting": setting, "weather": weather, "weather_when": weather_when,
-                "vfx": (vfx_custom.strip() or vfx), "vfx_when": vfx_when}
+                "vfx": (vfx_custom.strip() or vfx), "vfx_when": vfx_when, "framing_limit": framing_limit}
 
-    def run(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", chain=None):
-        path = self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom)
+    def run(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", chain=None):
+        path = self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom, framing_limit)
         clip = (chain.get("index", 0) + 1) if chain else 1
         if os.path.isfile(path):
             data = json.load(open(path, encoding="utf-8"))
             logging.info(f"[LTX Chain] clip {clip}: using cached auto-scenes {os.path.basename(path)}")
         else:
-            data = self._build(image, num_scenes, style, caption or "", num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom)
+            data = self._build(image, num_scenes, style, caption or "", num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom, framing_limit)
             json.dump(data, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
             logging.info(f"[LTX Chain] clip {clip}: analysed image -> auto-scenes cached ({os.path.basename(path)}), "
                          f"microphone={microphone} -> {'in frame' if data.get('microphone') else 'none'}, "
