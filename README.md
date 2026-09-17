@@ -13,7 +13,6 @@ A set of custom ComfyUI nodes + workflows that chain LTX‑2.5 into a self‑con
 
 ## 🎬 Sample videos / サンプル動画
 
-https://github.com/user-attachments/assets/49d6b273-1e38-4a9f-b0dc-cbbee9dfb67b
 https://github.com/user-attachments/assets/1c813e07-59bc-4b53-a705-99470cce31ac
 
 
