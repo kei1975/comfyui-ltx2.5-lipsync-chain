@@ -274,6 +274,9 @@ State に `resolution` を追加。LTX-2.5 が安全に出せる 64 の倍数プ
   結合。setting を写真以外にすると人物ブロックの「and the setting stay the same」を「Setting: …, replacing the background of
   the reference photo」に置換。既定は custom / auto なので既存ワークフローの挙動は不変。`art("")` が "an" を返す
   バグ（an duet）も修正
+- Auto Scenes `weather` / `weather_when`: `WEATHERS` の文を該当ブロックのショット行末尾に「Weather: … through the whole shot」
+  として追加（クリップ途中で消えにくい書き方）。`WEATHER_WHEN` はブロック番号 i と総数 n の述語（全部 / i%2 / i%3 / 最初 /
+  最後 / 最初以外）。シーンはブロックを巡回するので「時々」はシーン単位で効く。同一シーン内は hand-off で粒子が続く
 
 ## 9. このフォルダの中身（Video-Sticher プロジェクト内のバックアップ）
 

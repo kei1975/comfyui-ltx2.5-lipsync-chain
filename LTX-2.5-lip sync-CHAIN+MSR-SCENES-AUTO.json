@@ -10153,7 +10153,9 @@
         "",
         "custom (style text only)",
         "auto (from photo)",
-        "auto (from photo)"
+        "auto (from photo)",
+        "none",
+        "all scenes"
       ],
       "widgets_values_named": {
         "num_scenes": 4,
@@ -10176,7 +10178,9 @@
         "outfit": "",
         "look": "custom (style text only)",
         "lighting": "auto (from photo)",
-        "setting": "auto (from photo)"
+        "setting": "auto (from photo)",
+        "weather": "none",
+        "weather_when": "all scenes"
       },
       "color": "#2a3f2a",
       "bgcolor": "#38513a"

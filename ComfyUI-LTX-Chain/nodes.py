@@ -1052,6 +1052,39 @@ class LTXChainAutoScenes:
         "beach sunset": "a beach at sunset with the sea and the sky behind",
     }
 
+    # weather / atmosphere: written as a continuous, visible effect so it does not fade out mid-clip.
+    # `weather_when` decides which camera blocks get it (scenes cycle through the blocks).
+    WEATHERS = {
+        "none": "",
+        "light rain": "light rain falling steadily through the whole shot, fine drops visible in the air and "
+                      "glistening on surfaces, a damp sheen on the hair and clothes",
+        "heavy rain": "heavy rain pouring down through the whole shot, thick streaks of rain in the air, water "
+                      "running off surfaces, wet hair and soaked clothes",
+        "light snow": "light snow falling gently and continuously through the whole shot, soft flakes drifting "
+                      "in the air and settling on the hair and shoulders",
+        "heavy snow": "heavy snowfall through the whole shot, dense flakes filling the air, snow settling on the "
+                      "hair, shoulders and the ground",
+        "fog": "thick soft fog filling the scene, the background fading into mist, diffuse light",
+        "mist": "a thin veil of mist in the air, soft haze softening the background",
+        "wind": "a strong wind through the whole shot, the hair and clothes blowing and fluttering continuously",
+        "storm": "a storm through the whole shot: heavy rain, gusts of wind whipping the hair and clothes, "
+                 "occasional distant lightning flashes",
+        "falling petals": "cherry blossom petals drifting and falling continuously through the air",
+        "falling leaves": "autumn leaves drifting and falling continuously through the air",
+        "dust in sunbeams": "fine dust motes floating in visible beams of light",
+        "sparks / embers": "glowing embers and sparks drifting up through the air",
+        "confetti": "confetti falling continuously from above, fluttering through the air",
+        "haze with light rays": "atmospheric haze with visible rays of light cutting through the air",
+    }
+    WEATHER_WHEN = {
+        "all scenes": lambda i, n: True,
+        "every other scene": lambda i, n: i % 2 == 0,
+        "every third scene": lambda i, n: i % 3 == 0,
+        "first scene only": lambda i, n: i == 0,
+        "last scene only": lambda i, n: i == n - 1,
+        "all but the first scene": lambda i, n: i > 0,
+    }
+
     # height / body build: the adjective that goes into the "(a tall, slim 25-year-old Japanese woman)" tag,
     # plus a short body sentence so full-body angles keep the proportions
     # (tag adjective, body description). "tall" alone means nothing in a lone shot with no reference
@@ -1270,6 +1303,10 @@ class LTXChainAutoScenes:
                              "tooltip": "照明のプリセット。auto=写真の説明に任せる / soft key light / warm tungsten studio=暖色スタジオ / studio softbox / golden hour / overcast daylight / window light / dramatic side light / backlight rim / stage spotlight / neon / candles"}),
                 "setting": (list(cls.SETTINGS.keys()), {"default": "auto (from photo)",
                             "tooltip": "舞台（背景）のプリセット。auto=写真の背景のまま。それ以外を選ぶと「写真の背景の代わりにこの舞台」として全シーンに入ります（recording studio / plain backdrop / white cyclorama / concert stage / club stage / theater / rooftop / street at night / neon alley / bedroom / loft / rainy window / bar / warehouse / forest / beach）"}),
+                "weather": (list(cls.WEATHERS.keys()), {"default": "none",
+                            "tooltip": "天候・空気感。none / light rain=小雨 / heavy rain=大雨 / light snow=小雪 / heavy snow=大雪 / fog=濃霧 / mist=薄い靄 / wind=強風（髪・服がなびく） / storm=嵐 / falling petals=花びら / falling leaves=落ち葉 / dust in sunbeams=光の中の埃 / sparks / confetti / haze with light rays。「shot 全体で続く」と書くのでクリップ途中で消えにくい。屋内の setting と雨雪は矛盾するので注意"}),
+                "weather_when": (list(cls.WEATHER_WHEN.keys()), {"default": "all scenes",
+                                 "tooltip": "天候をどのシーン（カメラアングルのブロック）に付けるか。all scenes=全シーン / every other scene=1つおき / every third scene=2つおき / first scene only / last scene only / all but the first scene。シーン切替は新規生成＋ディゾルブなので、シーン間で天候が変わっても破綻しません（同じシーン内は hand-off で粒子が続く）"}),
             },
             "optional": {
                 "chain": (CHAIN_TYPE, {"tooltip": "任意。ログ用"}),
@@ -1291,10 +1328,10 @@ class LTXChainAutoScenes:
         return ["", "", "two", "three", "four", "five", "six", "seven", "eight"][n] if 0 <= n <= 8 else str(n)
 
     @classmethod
-    def _cache_path(cls, image, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)"):
+    def _cache_path(cls, image, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes"):
         d = os.path.join(_chains_root(), "_autoprompt")
         os.makedirs(d, exist_ok=True)
-        key = f'{style}|n{num_singers}|e{ethnicity}|p{performance}|a{age}|c{extra_cameras}|m{microphone}|g{gender}|x{emotion}|xc{emotion_custom}|v{motion}|vc{motion_custom}|h{height}|b{build}|k{camera}|kc{camera_custom}|o{outfit}|l{look}|li{lighting}|s{setting}'
+        key = f'{style}|n{num_singers}|e{ethnicity}|p{performance}|a{age}|c{extra_cameras}|m{microphone}|g{gender}|x{emotion}|xc{emotion_custom}|v{motion}|vc{motion_custom}|h{height}|b{build}|k{camera}|kc{camera_custom}|o{outfit}|l{look}|li{lighting}|s{setting}|w{weather}|ww{weather_when}'
         return os.path.join(d, f"scenes_{cls._key(image, num_scenes, key)}.json")
 
     @staticmethod
@@ -1326,8 +1363,8 @@ class LTXChainAutoScenes:
         t = t.rstrip(". ").strip()
         return t[0].lower() + t[1:] if t else t
 
-    def check_lazy_status(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", chain=None):
-        if os.path.isfile(self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting)):
+    def check_lazy_status(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", chain=None):
+        if os.path.isfile(self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when)):
             return []
         return ["caption"]
 
@@ -1432,7 +1469,7 @@ class LTXChainAutoScenes:
         low = f" {desc.lower()} "
         return any(w in low for w in cls.MIC_WORDS)
 
-    def _build(self, image, num_scenes, style, caption, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)"):
+    def _build(self, image, num_scenes, style, caption, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes"):
         desc = self._clean_caption(caption)
         mic = self._wants_mic(microphone, desc)
         hgt, hdesc = self.HEIGHTS.get(height, ("", ""))
@@ -1551,22 +1588,27 @@ class LTXChainAutoScenes:
             cams = [c.replace("the singer's", "the singers'").replace("the singer ", "the singers ")
                      .replace("at the singer", "at the singers").replace("the singer,", "the singers,")
                     for c in cams]
+        # weather goes on the shot line of the chosen blocks only (scenes cycle through the blocks)
+        wtxt = self.WEATHERS.get(weather, "")
+        when = self.WEATHER_WHEN.get(weather_when, self.WEATHER_WHEN["all scenes"])
+        if wtxt:
+            cams = [(c.rstrip() + " Weather: " + wtxt + ".") if when(i, len(cams)) else c for i, c in enumerate(cams)]
         scenes = [character + "\n\n" + c + tail for c in cams]
         return {"character": character, "scenes": "\n---\n".join(scenes),
                 "action_singing": act_sing, "action_intro": act_intro, "microphone": bool(mic),
                 "gender": g or "unknown", "emotion": (emotion_custom.strip() or emotion),
                 "motion": (motion_custom.strip() or motion), "height": height, "build": build,
                 "camera": (camera_custom.strip() or camera), "outfit": outfit_txt,
-                "look": look, "lighting": lighting, "setting": setting}
+                "look": look, "lighting": lighting, "setting": setting, "weather": weather, "weather_when": weather_when}
 
-    def run(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", chain=None):
-        path = self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting)
+    def run(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", chain=None):
+        path = self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when)
         clip = (chain.get("index", 0) + 1) if chain else 1
         if os.path.isfile(path):
             data = json.load(open(path, encoding="utf-8"))
             logging.info(f"[LTX Chain] clip {clip}: using cached auto-scenes {os.path.basename(path)}")
         else:
-            data = self._build(image, num_scenes, style, caption or "", num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting)
+            data = self._build(image, num_scenes, style, caption or "", num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when)
             json.dump(data, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
             logging.info(f"[LTX Chain] clip {clip}: analysed image -> auto-scenes cached ({os.path.basename(path)}), "
                          f"microphone={microphone} -> {'in frame' if data.get('microphone') else 'none'}, "
