@@ -10162,7 +10162,10 @@
         "auto (from photo)",
         "auto (from photo)",
         "none",
-        "all scenes"
+        "all scenes",
+        "none",
+        "random (about a third)",
+        ""
       ],
       "widgets_values_named": {
         "num_scenes": 4,
@@ -10187,7 +10190,10 @@
         "lighting": "auto (from photo)",
         "setting": "auto (from photo)",
         "weather": "none",
-        "weather_when": "all scenes"
+        "weather_when": "all scenes",
+        "vfx": "none",
+        "vfx_when": "random (about a third)",
+        "vfx_custom": ""
       },
       "color": "#2a3f2a",
       "bgcolor": "#38513a"

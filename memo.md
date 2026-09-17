@@ -277,6 +277,10 @@ State に `resolution` を追加。LTX-2.5 が安全に出せる 64 の倍数プ
 - Auto Scenes `weather` / `weather_when`: `WEATHERS` の文を該当ブロックのショット行末尾に「Weather: … through the whole shot」
   として追加（クリップ途中で消えにくい書き方）。`WEATHER_WHEN` はブロック番号 i と総数 n の述語（全部 / i%2 / i%3 / 最初 /
   最後 / 最初以外）。シーンはブロックを巡回するので「時々」はシーン単位で効く。同一シーン内は hand-off で粒子が続く
+- Auto Scenes `vfx` / `vfx_when` / `vfx_custom`: `VFX` 20 種をショット行末尾に「VFX: …」。`VFX_WHEN` は (n, rng) → ブロック
+  index の集合を返す（random 系は必ず 1 つ以上、`_key(image, num_scenes, vfx文)` を種にした固定 RNG → redo でも同じシーン）。
+  雷・ストロボ・カメラフラッシュは Step の `_normalize_color`（3 フレーム平滑の毎フレーム正規化）に打ち消されるので
+  handoff_color_match ≤ 0.3 を案内
 
 ## 9. このフォルダの中身（Video-Sticher プロジェクト内のバックアップ）
 
