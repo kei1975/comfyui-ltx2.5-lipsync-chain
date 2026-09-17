@@ -289,6 +289,14 @@ State に `resolution` を追加。LTX-2.5 が安全に出せる 64 の倍数プ
   widgets_values の 28 番目に保存されてしまい、将来の入力追加でずれる原因になるので描画方式に変更・保存済み JSON からも除去）
 - motion に `running toward camera` / `jogging toward camera`（カメラ注記: 同速で後退＋手持ち感）。走りの写真を pic1（Stage 1）に
   すると毎クリップ「走る姿勢」に引き戻されるので走りが止まりにくい（参照のポーズ引力を逆利用）
+- ReActor `enabled=OFF` で IndexError: ReActor は無効時に 2 出力しか返さない（RETURN_TYPES は 3）バグ。KeepMouth.original を
+  ReActor.ORIGINAL_IMAGE ではなく上流（Last Frames / Load Video）から直接取る配線に変更（全 ReActor 系ワークフロー、
+  ComfyUI 側の作品別コピーも含む）。ReActor の 3 番目の出力には何も繋がないこと
+- State `face_anchor`（BOOLEAN 入力＋出力 index 16）→ ReActor.enabled（入力化）に配線。State だけで ON/OFF。
+  全 AUTO+ReActor ワークフロー（作品別コピー含む）に配線済み
+- Step で「weight is on cpu, other tensors on cuda:0」: ReActor の出力が CUDA テンソルで KeepMouth 経由で handoff_images に
+  入り、`_normalize_color` の CPU カーネルと衝突。KeepMouth 出力を .cpu()、Step で handoff_images.cpu()、
+  `_normalize_color` はカーネル・参照を frames.device に置くよう修正
 
 ## 9. このフォルダの中身（Video-Sticher プロジェクト内のバックアップ）
 

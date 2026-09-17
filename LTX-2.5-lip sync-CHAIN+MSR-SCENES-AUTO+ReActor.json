@@ -2,7 +2,7 @@
   "id": "b9475e83-f373-4d62-86cc-b1f838cbd0e0",
   "revision": 0,
   "last_node_id": 209,
-  "last_link_id": 310,
+  "last_link_id": 311,
   "nodes": [
     {
       "id": 54,
@@ -9943,6 +9943,13 @@
             282,
             285
           ]
+        },
+        {
+          "name": "face_anchor",
+          "type": "BOOLEAN",
+          "links": [
+            311
+          ]
         }
       ],
       "title": "LTX Chain: State  (ここで設定)",
@@ -9974,7 +9981,8 @@
         "",
         "",
         0,
-        ""
+        "",
+        true
       ],
       "widgets_values_named": {
         "audio_start_sec": 0,
@@ -9995,7 +10003,9 @@
         "redo_session": "20260914_v32",
         "redo_clips": "9,10",
         "chain_iter": 0,
-        "chain_state": ""
+        "chain_state": "",
+        "scene_switching": true,
+        "face_anchor": true
       },
       "color": "#432",
       "bgcolor": "#653"
@@ -10540,7 +10550,7 @@
           "widget": {
             "name": "enabled"
           },
-          "link": null
+          "link": 311
         },
         {
           "name": "swap_model",
@@ -10639,9 +10649,7 @@
         {
           "name": "ORIGINAL_IMAGE",
           "type": "IMAGE",
-          "links": [
-            307
-          ]
+          "links": []
         }
       ],
       "title": "ReActor（hand-off 9 フレームだけ）",
@@ -10841,7 +10849,8 @@
           "name": "last_frames",
           "type": "IMAGE",
           "links": [
-            304
+            304,
+            307
           ]
         }
       ],
@@ -12459,8 +12468,8 @@
     ],
     [
       307,
-      206,
-      2,
+      209,
+      0,
       208,
       1,
       "IMAGE"
@@ -12488,6 +12497,14 @@
       179,
       3,
       "IMAGE"
+    ],
+    [
+      311,
+      178,
+      16,
+      206,
+      4,
+      "BOOLEAN"
     ]
   ],
   "groups": [

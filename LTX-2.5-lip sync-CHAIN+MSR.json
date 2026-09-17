@@ -9330,7 +9330,8 @@
         "",
         "",
         0,
-        ""
+        "",
+        true
       ],
       "widgets_values_named": {
         "audio_start_sec": 0,
@@ -9351,7 +9352,9 @@
         "redo_session": "",
         "redo_clips": "",
         "chain_iter": 0,
-        "chain_state": ""
+        "chain_state": "",
+        "scene_switching": true,
+        "face_anchor": true
       },
       "color": "#432",
       "bgcolor": "#653"

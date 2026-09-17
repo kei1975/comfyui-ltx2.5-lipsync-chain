@@ -142,7 +142,8 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            3
+            3,
+            11
           ]
         },
         {
@@ -377,9 +378,7 @@
         {
           "name": "ORIGINAL_IMAGE",
           "type": "IMAGE",
-          "links": [
-            11
-          ]
+          "links": []
         }
       ],
       "properties": {
@@ -840,8 +839,8 @@
     ],
     [
       11,
-      4,
       2,
+      0,
       9,
       1,
       "IMAGE"

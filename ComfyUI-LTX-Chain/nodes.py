@@ -148,7 +148,7 @@ def _normalize_color(frames, target, strength, window=3):
     frame's global statistics to the reference (statistics smoothed over `window` frames so
     content motion does not pump the exposure) removes both without touching the generation."""
     x = frames.float()
-    t = target.float()
+    t = target.float().to(x.device)
     mean_t = t.mean(dim=(0, 1, 2))
     std_t = t.std(dim=(0, 1, 2)) + 1e-6
     mean_i = x.mean(dim=(1, 2))                      # [T, 3]
@@ -157,7 +157,7 @@ def _normalize_color(frames, target, strength, window=3):
         w = min(window, x.shape[0])
         w += (w + 1) % 2                             # odd
         pad = w // 2
-        kernel = torch.ones(3, 1, w, dtype=x.dtype) / w
+        kernel = torch.ones(3, 1, w, dtype=x.dtype, device=x.device) / w
         def smooth(v):                               # [T, 3] -> [T, 3], edge padded
             v = v.t().unsqueeze(0)                   # [1, 3, T]
             v = torch.nn.functional.pad(v, (pad, pad), mode="replicate")
@@ -276,26 +276,29 @@ class LTXChainState:
                                            "tooltip": "内部用。手動実行のときは空のままにしてください"}),
                 "scene_switching": ("BOOLEAN", {"default": True, "label_on": "ON", "label_off": "OFF",
                                                 "tooltip": "シーン切替のワンボタン。OFF にすると scene_cuts と clips_per_scene を無視して 1 シーン（最初のカメラアングル）で最後まで生成。設定は消さずに残るので、ON に戻せば元どおり"}),
+                "face_anchor": ("BOOLEAN", {"default": True, "label_on": "ReActor ON", "label_off": "OFF",
+                                            "tooltip": "顔アンカー（ReActor）のワンボタン。face_anchor 出力を ReActor ノードの enabled につないでおくと、ここで ON/OFF できます。OFF = hand-off に顔補正をかけない（従来どおり）。ReActor の無いワークフローでは無視"}),
             }
         }
 
     RETURN_TYPES = ("IMAGE", "FLOAT", "INT", "INT", "INT", CHAIN_TYPE, "STRING", "INT", "INT", "BOOLEAN", "BOOLEAN", "INT", "BOOLEAN",
-                    "INT", "IMAGE", "BOOLEAN")
+                    "INT", "IMAGE", "BOOLEAN", "BOOLEAN")
     RETURN_NAMES = ("image", "start_sec", "num_seconds", "chunk_index", "total_chunks", "chain", "info", "width", "height",
-                    "use_msr_stage1", "use_msr_stage2", "scene_index", "bypass_image", "seed", "end_image", "pin_end")
+                    "use_msr_stage1", "use_msr_stage2", "scene_index", "bypass_image", "seed", "end_image", "pin_end", "face_anchor")
     OUTPUT_TOOLTIPS = (None, None, None, None, None, None, None, None, None, None, None,
                        "このクリップのシーン番号（0 始まり）。Scene Prompt ノードが使う",
                        "True = シーン切り替え直後のクリップ。Stage 1 の LTXVImgToVideoInplace の bypass につなぐ（受け渡しフレームを使わず参照だけから生成）",
                        "このクリップ用のシード（RandomNoise の noise_seed につなぐ）",
                        "作り直しのとき、次のクリップとの継ぎ目に合わせるための終端フレーム（LTXVAddGuide の image につなぐ）",
-                       "True = 終端フレームを固定する（作り直しで次のクリップがあるとき）。AddGuide の切り替えスイッチにつなぐ")
+                       "True = 終端フレームを固定する（作り直しで次のクリップがあるとき）。AddGuide の切り替えスイッチにつなぐ",
+                       "face_anchor の値をそのまま出力。ReActor ノードの enabled（入力に変換）につなぐ")
     FUNCTION = "run"
     CATEGORY = "LTX Chain"
 
     def run(self, image, audio, audio_start_sec, chunk_seconds, length_mode, length_seconds,
             fps, chain_iter, chain_state, resolution=RES_PRESETS[0], generation_width=609, generation_height=1056,
             msr_clips="stage2_all", clips_per_scene=0, scene_cuts="", overlap_frames=8, handoff_color_match=1.0,
-            scene_crossfade=True, seed=42, redo_session="", redo_clips="", scene_switching=True):
+            scene_crossfade=True, seed=42, redo_session="", redo_clips="", scene_switching=True, face_anchor=True):
         available = max(0.0, _audio_seconds(audio) - audio_start_sec)
         target = available if length_mode == "all" else min(float(length_seconds), available)
         if target <= 0:
@@ -456,7 +459,7 @@ class LTXChainState:
         use_msr_stage1 = (msr_clips == "all") or n == 0 or scene_start
         use_msr_stage2 = (msr_clips in ("all", "stage2_all")) or n == 0 or scene_start
         return (ref, float(start_sec), num_seconds, n, total_chunks, chain, info, out_w, out_h,
-                use_msr_stage1, use_msr_stage2, scene_index, scene_start, clip_seed, end_image, pin_end)
+                use_msr_stage1, use_msr_stage2, scene_index, scene_start, clip_seed, end_image, pin_end, bool(face_anchor))
 
 
 class LTXChainStep:
@@ -520,7 +523,7 @@ class LTXChainStep:
         if handoff_images is not None and handoff_images.shape[0] > 0:
             # identity anchor: the next clip continues from face-corrected frames, the saved clip
             # stays untouched. Same colour normalisation as the clip so the seam colour matches.
-            hs = handoff_images.float()
+            hs = handoff_images.float().cpu()
             if hs.shape[1:3] != images.shape[1:3]:
                 hs = _fit_image(hs, images.shape[2], images.shape[1])
             if strength > 0:
@@ -1928,7 +1931,7 @@ class LTXChainFaceKeepMouth:
             mt = mt.unsqueeze(-1)
             out[i] = swapped[i] * (1 - mt) + original[i].to(out.device) * mt
         logging.info(f"[LTX Chain] keep-mouth composite: {n} frames, {missed} without a detected face (previous mask reused)")
-        return (out, masks)
+        return (out.cpu(), masks)
 
 
 NODE_CLASS_MAPPINGS = {
