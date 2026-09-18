@@ -169,6 +169,19 @@ def _normalize_color(frames, target, strength, window=3):
     return (x + (corrected - x) * float(strength)).clamp(0.0, 1.0)
 
 
+def _video_tail(path, k):
+    """The last `k` frames of an mp4 as [k, H, W, 3] float 0..1 (decoded with PyAV)."""
+    tail = []
+    with av.open(path) as c:
+        for frame in c.decode(video=0):
+            tail.append(frame.to_ndarray(format="rgb24"))
+            if len(tail) > k:
+                tail.pop(0)
+    if not tail:
+        raise ValueError(f"no frames in {path}")
+    return torch.from_numpy(np.stack(tail).astype(np.float32) / 255.0)
+
+
 def _parse_cuts(text):
     """'12.5, 24 40.2' -> sorted unique floats."""
     vals = []
@@ -278,6 +291,8 @@ class LTXChainState:
                                                 "tooltip": "シーン切替のワンボタン。OFF にすると scene_cuts と clips_per_scene を無視して 1 シーン（最初のカメラアングル）で最後まで生成。設定は消さずに残るので、ON に戻せば元どおり"}),
                 "face_anchor": ("BOOLEAN", {"default": True, "label_on": "ReActor ON", "label_off": "OFF",
                                             "tooltip": "顔アンカー（ReActor）のワンボタン。face_anchor 出力を ReActor ノードの enabled につないでおくと、ここで ON/OFF できます。OFF = hand-off に顔補正をかけない（従来どおり）。ReActor の無いワークフローでは無視"}),
+                "redo_lead_seconds": ("INT", {"default": 0, "min": 0, "max": 3,
+                                              "tooltip": "作り直し（redo）のクリップだけ、前のクリップの末尾をこの秒数ぶん余分に引き継いで生成し、出来上がりからその秒数を捨てます（0 = 従来どおり 1+overlap フレームだけ）。引き継ぐ動きの文脈が 0.3 秒 → 1 秒以上になるので、redo で構図や表情が飛ぶときに。そのクリップだけ生成フレームが増える（1 秒 = +24 フレーム）。fps 24 前提。通常の生成と、シーン切替直後のクリップでは無視"}),
             }
         }
 
@@ -298,7 +313,8 @@ class LTXChainState:
     def run(self, image, audio, audio_start_sec, chunk_seconds, length_mode, length_seconds,
             fps, chain_iter, chain_state, resolution=RES_PRESETS[0], generation_width=609, generation_height=1056,
             msr_clips="stage2_all", clips_per_scene=0, scene_cuts="", overlap_frames=8, handoff_color_match=1.0,
-            scene_crossfade=True, seed=42, redo_session="", redo_clips="", scene_switching=True, face_anchor=True):
+            scene_crossfade=True, seed=42, redo_session="", redo_clips="", scene_switching=True, face_anchor=True,
+            redo_lead_seconds=0):
         available = max(0.0, _audio_seconds(audio) - audio_start_sec)
         target = available if length_mode == "all" else min(float(length_seconds), available)
         if target <= 0:
@@ -363,6 +379,11 @@ class LTXChainState:
         # generated from the MSR references alone, so the previous clip's frames are not pinned and
         # the seam is a hard cut.
         state = json.loads(chain_state) if chain_state else {}
+        # Redo lead: the redone clip is also conditioned on the last `lead_frames` frames of the
+        # previous clip's saved mp4 (which end exactly where the hand-off frames begin), so the model
+        # continues from ~1 s of motion instead of 1 latent frame. The clip is generated `lead`
+        # seconds early and Step drops those frames again, so the session's clip grid is untouched.
+        lead_frames = 0
         if redo:
             session = redo_session.strip()
             prev = os.path.join(sdir_redo, f"handoff_{n - 1:03d}.npy") if n > 0 and not scene_start else None
@@ -374,6 +395,17 @@ class LTXChainState:
                     raise FileNotFoundError(f"redo: hand-off frames of clip {n} not found: {prev}")
                 ref = torch.from_numpy(np.load(prev).astype(np.float32) / 255.0)
                 prev_handoff = prev
+                lead = int(redo_lead_seconds)
+                prev_clip = os.path.join(sdir_redo, f"clip_{n:03d}.mp4")
+                if lead > 0 and os.path.isfile(prev_clip):
+                    tail = _video_tail(prev_clip, lead * fps)
+                    if tail.shape[1:3] != ref.shape[1:3]:
+                        tail = _fit_image(tail, ref.shape[2], ref.shape[1])
+                    lead_frames = tail.shape[0]
+                    ref = torch.cat([tail, ref], dim=0)
+                    logging.info(f"[LTX Chain] redo lead: {lead_frames} frames from {os.path.basename(prev_clip)} + {prev_handoff and os.path.basename(prev_handoff)}")
+                elif lead > 0:
+                    logging.warning(f"[LTX Chain] redo lead: {prev_clip} not found, using the hand-off frames only")
         elif n == 0 or not state:
             session = _new_session_name()
             sdir = _session_dir(session)
@@ -434,6 +466,7 @@ class LTXChainState:
             "redo": redo,
             "redo_list": redo_list,
             "redo_index": redo_index,
+            "lead_frames": lead_frames,
         }
         # End pin (redo only): the next clip was generated from this clip's old hand-off frames, so
         # the new version must end on the same frame -> pin old handoff[0] at frame -handoff.
@@ -450,15 +483,20 @@ class LTXChainState:
                 end_image = torch.from_numpy(np.load(old_hand)[:1].astype(np.float32) / 255.0)
                 pin_end = True
         clip_seed = (int(seed) + n * 1000003 + attempt * 7919) % (2 ** 63)
-        info = (f"{'REDO ' if redo else ''}clip {n + 1}/{total_chunks}  audio {start_sec:.2f}s -> {start_sec + num_seconds:.2f}s  "
-                f"(hand-off {ref.shape[0]} frames, seed {clip_seed}{', end pinned' if pin_end else ''})  folder={CHAINS_SUBDIR}/{session}")
+        # lead: generate `lead` seconds early (audio + frame count), Step drops those frames again
+        gen_start, gen_seconds = start_sec, num_seconds
+        if lead_frames:
+            gen_start, gen_seconds = start_sec - lead_frames / fps, num_seconds + int(round(lead_frames / fps))
+        info = (f"{'REDO ' if redo else ''}clip {n + 1}/{total_chunks}  audio {gen_start:.2f}s -> {gen_start + gen_seconds:.2f}s  "
+                f"(hand-off {ref.shape[0]} frames{f' incl. {lead_frames} lead' if lead_frames else ''}, seed {clip_seed}"
+                f"{', end pinned' if pin_end else ''})  folder={CHAINS_SUBDIR}/{session}")
         logging.info(f"[LTX Chain] {info}")
         # Stage 1 decides the motion: a reference there on clips > 0 snaps the pose back to the
         # reference picture. Stage 2 only refines detail, so the reference is safe on every clip.
         # A scene-start clip has no start frame, so it needs the references at stage 1 as well.
         use_msr_stage1 = (msr_clips == "all") or n == 0 or scene_start
         use_msr_stage2 = (msr_clips in ("all", "stage2_all")) or n == 0 or scene_start
-        return (ref, float(start_sec), num_seconds, n, total_chunks, chain, info, out_w, out_h,
+        return (ref, float(gen_start), gen_seconds, n, total_chunks, chain, info, out_w, out_h,
                 use_msr_stage1, use_msr_stage2, scene_index, scene_start, clip_seed, end_image, pin_end, bool(face_anchor))
 
 
@@ -501,6 +539,12 @@ class LTXChainStep:
         # Colour drift / seam step: normalise every frame's global colour statistics to the
         # reference image (see _normalize_color). Frame 0 of the first clip IS the reference.
         images = images.float()
+        # redo lead: the clip was generated early on the previous clip's tail; drop that part so
+        # frame 0 lands on the session's grid again (the hand-off dissolve below then applies)
+        lead = int(chain.get("lead_frames", 0) or 0)
+        if lead and images.shape[0] > lead + handoff:
+            images = images[lead:]
+            logging.info(f"[LTX Chain] clip {n + 1}: dropped {lead} lead frames")
         strength = chain.get("color_match", 0.0)
         scene_index = chain.get("scene_index", 0)
         scene_ref_path = os.path.join(sdir, f"scene_ref_{scene_index:03d}.png")
