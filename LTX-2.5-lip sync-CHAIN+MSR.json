@@ -1,8 +1,8 @@
 {
   "id": "dcafce16-8b70-4725-9bb4-7d40ed257999",
   "revision": 0,
-  "last_node_id": 195,
-  "last_link_id": 266,
+  "last_node_id": 196,
+  "last_link_id": 268,
   "nodes": [
     {
       "id": 54,
@@ -6370,9 +6370,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            203,
-            263,
-            264
+            203
           ]
         },
         {
@@ -7446,7 +7444,7 @@
           "name": "background",
           "shape": 7,
           "type": "IMAGE",
-          "link": 263
+          "link": 267
         },
         {
           "localized_name": "msr_parameters",
@@ -7694,7 +7692,7 @@
           "name": "background",
           "shape": 7,
           "type": "IMAGE",
-          "link": 264
+          "link": 268
         },
         {
           "localized_name": "msr_parameters",
@@ -9358,6 +9356,81 @@
       },
       "color": "#432",
       "bgcolor": "#653"
+    },
+    {
+      "id": 196,
+      "type": "LoadImage",
+      "pos": [
+        -391,
+        30
+      ],
+      "size": [
+        300,
+        360
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 43,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "image",
+          "localized_name": "画像",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          }
+        },
+        {
+          "label": "upload",
+          "localized_name": "アップロードするファイルを選択",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "label": "IMAGE",
+          "localized_name": "画像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            267,
+            268
+          ]
+        },
+        {
+          "label": "MASK",
+          "localized_name": "マスク",
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.56",
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "version": "7.8",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Paris d'avant.png",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "Paris d'avant.png",
+        "upload": "image"
+      },
+      "title": "REF 5: 背景 (background, 任意 / MSR の background スロット)"
     }
   ],
   "links": [
@@ -10714,22 +10787,6 @@
       "AUDIO"
     ],
     [
-      263,
-      23,
-      0,
-      184,
-      8,
-      "IMAGE"
-    ],
-    [
-      264,
-      23,
-      0,
-      186,
-      8,
-      "IMAGE"
-    ],
-    [
       265,
       178,
       13,
@@ -10744,6 +10801,22 @@
       73,
       0,
       "INT"
+    ],
+    [
+      267,
+      196,
+      0,
+      184,
+      8,
+      "IMAGE"
+    ],
+    [
+      268,
+      196,
+      0,
+      186,
+      8,
+      "IMAGE"
     ]
   ],
   "groups": [

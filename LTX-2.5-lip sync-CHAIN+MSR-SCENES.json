@@ -1,8 +1,8 @@
 {
   "id": "dcafce16-8b70-4725-9bb4-7d40ed257999",
   "revision": 0,
-  "last_node_id": 202,
-  "last_link_id": 293,
+  "last_node_id": 203,
+  "last_link_id": 295,
   "nodes": [
     {
       "id": 54,
@@ -7446,7 +7446,7 @@
           "name": "background",
           "shape": 7,
           "type": "IMAGE",
-          "link": null
+          "link": 294
         },
         {
           "localized_name": "msr_parameters",
@@ -7694,7 +7694,7 @@
           "name": "background",
           "shape": 7,
           "type": "IMAGE",
-          "link": null
+          "link": 295
         },
         {
           "localized_name": "msr_parameters",
@@ -10015,6 +10015,82 @@
       },
       "color": "#432",
       "bgcolor": "#653"
+    },
+    {
+      "id": 203,
+      "type": "LoadImage",
+      "pos": [
+        -391,
+        30
+      ],
+      "size": [
+        300,
+        360
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 55,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "画像",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "アップロードするファイルを選択",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "画像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            294,
+            295
+          ]
+        },
+        {
+          "localized_name": "マスク",
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "title": "REF 5: 背景 (background, 任意 / MSR の background スロット)",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.34.3",
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "image": true,
+            "upload": true
+          },
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Paris d'avant.png",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "Paris d'avant.png",
+        "upload": "image"
+      }
     }
   ],
   "links": [
@@ -11553,6 +11629,22 @@
       192,
       1,
       "LATENT"
+    ],
+    [
+      294,
+      203,
+      0,
+      184,
+      8,
+      "IMAGE"
+    ],
+    [
+      295,
+      203,
+      0,
+      186,
+      8,
+      "IMAGE"
     ]
   ],
   "groups": [

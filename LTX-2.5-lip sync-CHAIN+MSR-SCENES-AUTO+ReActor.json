@@ -1,8 +1,8 @@
 {
   "id": "b9475e83-f373-4d62-86cc-b1f838cbd0e0",
   "revision": 0,
-  "last_node_id": 209,
-  "last_link_id": 311,
+  "last_node_id": 211,
+  "last_link_id": 317,
   "nodes": [
     {
       "id": 54,
@@ -7281,7 +7281,7 @@
           "name": "background",
           "shape": 7,
           "type": "IMAGE",
-          "link": null
+          "link": 312
         },
         {
           "localized_name": "msr_parameters",
@@ -7529,7 +7529,7 @@
           "name": "background",
           "shape": 7,
           "type": "IMAGE",
-          "link": null
+          "link": 313
         },
         {
           "localized_name": "msr_parameters",
@@ -9076,7 +9076,8 @@
           "name": "florence2_model",
           "type": "FL2MODEL",
           "links": [
-            295
+            295,
+            315
           ]
         }
       ],
@@ -10106,6 +10107,20 @@
             "name": "extra_cameras"
           },
           "link": null
+        },
+        {
+          "localized_name": "background_image",
+          "name": "background_image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 316
+        },
+        {
+          "localized_name": "background_caption",
+          "name": "background_caption",
+          "shape": 7,
+          "type": "STRING",
+          "link": 317
         }
       ],
       "outputs": [
@@ -10865,6 +10880,265 @@
       ],
       "color": "#432",
       "bgcolor": "#653"
+    },
+    {
+      "id": 210,
+      "type": "LoadImage",
+      "pos": [
+        -391,
+        30
+      ],
+      "size": [
+        300,
+        360
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 53,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "画像",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "アップロードするファイルを選択",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "画像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            312,
+            313,
+            314,
+            316
+          ]
+        },
+        {
+          "localized_name": "マスク",
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "title": "REF 5: 背景 (background, 任意 / MSR の background スロット)",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.34.3",
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "image": true,
+            "upload": true
+          },
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Codex 画像 2026年9月14日 20_14_20.png",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "Codex 画像 2026年9月14日 20_14_20.png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 211,
+      "type": "Florence2Run",
+      "pos": [
+        -628,
+        1540
+      ],
+      "size": [
+        330,
+        364
+      ],
+      "flags": {},
+      "order": 72,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "link": 314
+        },
+        {
+          "localized_name": "florence2_model",
+          "name": "florence2_model",
+          "type": "FL2MODEL",
+          "link": 315
+        },
+        {
+          "localized_name": "text_input",
+          "name": "text_input",
+          "type": "STRING",
+          "widget": {
+            "name": "text_input"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "task",
+          "name": "task",
+          "type": "COMBO",
+          "widget": {
+            "name": "task"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "fill_mask",
+          "name": "fill_mask",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "fill_mask"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "keep_model_loaded",
+          "name": "keep_model_loaded",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "keep_model_loaded"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "max_new_tokens",
+          "name": "max_new_tokens",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "max_new_tokens"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "num_beams",
+          "name": "num_beams",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "num_beams"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "do_sample",
+          "name": "do_sample",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "do_sample"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "output_mask_select",
+          "name": "output_mask_select",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "output_mask_select"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "links": []
+        },
+        {
+          "localized_name": "mask",
+          "name": "mask",
+          "type": "MASK",
+          "links": []
+        },
+        {
+          "localized_name": "caption",
+          "name": "caption",
+          "type": "STRING",
+          "links": [
+            317
+          ]
+        },
+        {
+          "localized_name": "data",
+          "name": "data",
+          "type": "JSON",
+          "links": []
+        }
+      ],
+      "title": "背景を説明させる (REF 5 → more_detailed_caption)",
+      "properties": {
+        "cnr_id": "comfyui-florence2",
+        "ver": "1.1.0",
+        "Node name for S&R": "Florence2Run",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "",
+        "more_detailed_caption",
+        false,
+        false,
+        512,
+        3,
+        false,
+        "",
+        164865799810123,
+        "randomize"
+      ],
+      "widgets_values_named": {
+        "text_input": "",
+        "task": "more_detailed_caption",
+        "fill_mask": false,
+        "keep_model_loaded": false,
+        "max_new_tokens": 512,
+        "num_beams": 3,
+        "do_sample": false,
+        "output_mask_select": "",
+        "seed": 164865799810123,
+        "control_after_generate": "randomize"
+      },
+      "color": "#2a3f2a",
+      "bgcolor": "#38513a"
     }
   ],
   "links": [
@@ -12507,6 +12781,54 @@
       206,
       4,
       "BOOLEAN"
+    ],
+    [
+      312,
+      210,
+      0,
+      184,
+      8,
+      "IMAGE"
+    ],
+    [
+      313,
+      210,
+      0,
+      186,
+      8,
+      "IMAGE"
+    ],
+    [
+      314,
+      210,
+      0,
+      211,
+      0,
+      "IMAGE"
+    ],
+    [
+      315,
+      203,
+      0,
+      211,
+      1,
+      "FL2MODEL"
+    ],
+    [
+      316,
+      210,
+      0,
+      205,
+      10,
+      "IMAGE"
+    ],
+    [
+      317,
+      211,
+      2,
+      205,
+      11,
+      "STRING"
     ]
   ],
   "groups": [
@@ -12517,7 +12839,7 @@
         -1800,
         -430,
         1773.0856384277345,
-        1967.5595960461005
+        2364
       ],
       "color": "#3f5f3f",
       "flags": {}
@@ -12649,7 +12971,7 @@
         -668.0269061848235,
         938.4554239601123,
         800,
-        590.4415744297382
+        995.5445760398877
       ],
       "color": "#2f5f2f",
       "flags": {}
