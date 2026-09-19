@@ -346,6 +346,13 @@ State に `resolution` を追加。LTX-2.5 が安全に出せる 64 の倍数プ
   2 か所に入れる。文面は season の服装指定と同じく "Any other people visible in the background are …" の
   条件付き（"the crowd" 等と書くと誰も居ないショットに群衆が湧く）。season を選んでいるときは
   "… are {crowd} and wear {季節の服装}." と 1 文にまとめ、season なしのときは単独文で入れる
+- 20260920_v05（background_people=Japanese）の結果: 季節は完全に固定（コート類ゼロ）、人種もアジア系に
+  なったが、2 点まずかった。(1) 表参道の夜なのにビーチサンダル＋サロペットのリゾート客 — 原因は
+  `midsummer` の服装文が "shorts or thin skirts, sandals, bare arms and legs" と場所まで決めていたこと。
+  暑さは season、場所は setting の担当なので "short sleeves or sleeveless tops, thin light fabrics,
+  bare arms" に変更。(2) 背景の人が同じ体型・同じ服のクローン — 描写が一種類しか無いとモデルは複製する。
+  `CROWD_VARIETY`（年齢・体型・服装がばらばら）を "any other people visible …" 節に常に同梱
+  （background_people が空でも、season さえ指定されていれば入る。両方空なら従来どおり何も足さない）
 
 ## 9. このフォルダの中身（Video-Sticher プロジェクト内のバックアップ）
 

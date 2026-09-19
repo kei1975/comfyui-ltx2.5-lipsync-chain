@@ -1142,7 +1142,12 @@ class LTXChainAutoScenes:
 
     # Built prompts are cached by their settings, so a change to the wording below would keep serving the
     # old text for an image that had already been analysed. Bump this whenever that wording changes.
-    SEASON_REV = 2
+    SEASON_REV = 3
+
+    # LTX draws one background person and then copies it: without this the pavement fills with the same
+    # slim young woman in the same dress. It is only ever added next to the "any other people visible"
+    # clause, so it still cannot conjure a crowd into a shot that had nobody in it.
+    CROWD_VARIETY = "a mix of men and women of different ages and builds, each dressed differently"
 
     # season. What gives a season away is the background - the trees, the ground, and above all what
     # the OTHER people in the shot are wearing - so every entry spells those out and names what must
@@ -1178,8 +1183,7 @@ class LTXChainAutoScenes:
         "midsummer": (
             "the height of summer, hot summer air, everyone in summer clothing, no winter clothes anywhere",
             "the height of summer, lush green leaves and hot shimmering summer air",
-            "high-summer clothes - short sleeves or sleeveless tops, shorts or thin skirts, sandals, bare arms "
-            "and legs",
+            "high-summer clothes - short sleeves or sleeveless tops, thin light fabrics, bare arms",
             "snow, or any coat, jacket, hoodie, sweatshirt, scarf, glove, knitwear, boot or heavy long "
             "sleeve on anyone"),
         "early autumn": (
@@ -1848,6 +1852,7 @@ class LTXChainAutoScenes:
         # told otherwise). Both are written as "any other people visible ...", never as a crowd, or the
         # model puts one in a shot that had nobody.
         crowd = " ".join((background_people or "").split()).strip().rstrip(".")
+        who_else = f"{crowd}, {self.CROWD_VARIETY}" if crowd else self.CROWD_VARIETY
         season_short, season_lock = "", ""
         spec = self.SEASONS.get(season)
         if spec:
@@ -1855,15 +1860,14 @@ class LTXChainAutoScenes:
             own = ("The singer's own outfit is the one described above and does not change with the season."
                    if ns == 1 else
                    "The singers' own outfits are the ones described above and do not change with the season.")
-            others = (f"Any other people visible in the background are {crowd} and wear {season_wear}."
-                      if crowd else f"Any other people visible in the background wear {season_wear}.")
-            season_lock = (f" Season: {season_env}. Exactly the same season in every shot. {others} "
-                           f"Nowhere in the shot is there {season_forbid}. {own}")
+            season_lock = (f" Season: {season_env}. Exactly the same season in every shot. Any other people "
+                           f"visible in the background are {who_else}. They wear {season_wear}. Nowhere in "
+                           f"the shot is there {season_forbid}. {own}")
             if weather in self.SEASON_WEATHER_CLASH.get(season, ()):
                 logging.warning(f"[LTX Chain] Auto Scenes: weather={weather} contradicts season={season} - "
                                 f"the two will fight each other in the prompt")
         # without a season the same sentence stands on its own
-        crowd_lock = f" Any other people visible in the background are {crowd}." if (crowd and not spec) else ""
+        crowd_lock = f" Any other people visible in the background are {who_else}." if (crowd and not spec) else ""
         # "(a 25-year-old Japanese woman)" — the noun follows the gender; only written out when
         # the user forced a gender or gave age/ethnicity, so an unlabelled caption stays untouched
         noun = {"female": "woman", "male": "man"}.get(g, "person")
