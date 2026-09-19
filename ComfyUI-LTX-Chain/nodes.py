@@ -1591,6 +1591,8 @@ class LTXChainAutoScenes:
                            "tooltip": "季節。auto=写真のまま（指定なし）。選ぶと全シーンでその季節を固定し、背景に写っている人の服装まで指定します（真夏なら半袖・サンダル、コート/マフラー/手袋は出さない、雪も無し）。「夏の曲なのに背景の通行人が冬物」を防ぐための項目です。歌い手本人の服は参照画像／outfit のままで季節では変わりません（歌い手も季節に合わせたいときは outfit に書く）。early spring=早春 / spring (cherry blossom)=桜 / late spring=晩春 / early summer=初夏 / midsummer=真夏 / early autumn=初秋 / late autumn=晩秋 / winter=冬（雪なし）/ midwinter (snow)=真冬（雪あり）。style 欄に季節と矛盾する服装（例: Japanese pedestrians in winter coats）を書いていると、そちらの方が具体的で勝ってしまうため自動で削除します（削除内容はコンソールに出ます）。weather と矛盾する組み合わせ（真夏×雪 など）も警告を出します。屋内の setting では効果は薄い"}),
                 "framing_min": (cls.FRAMING_LIMITS, {"default": "close-up",
                                 "tooltip": "一番寄った構図の下限（ズームインの上限）。close-up=制限なし（既定・今までと同じ）。これより寄った内蔵アングルはローテーションから外れるので、`framing_limit`（広い側の上限）と挟んで「この範囲の構図だけ使う」を作れます。num_scenes=1 のときは、条件に合う内蔵アングルの先頭が 1 つだけ使われます（既定では腰上。mid-thigh にすると膝上アングルになる）。歩く・踊る motion で脚や靴を見せたいのに開始画像が腰上だと、モデルが冒頭で勝手に引いてカットのように見えるので、その対策に。framing_limit より広い値を入れた場合は framing_limit を優先します。extra_cameras の自作アングルは対象外"}),
+                "background_people": ("STRING", {"default": "",
+                                      "tooltip": "任意。背景に写る人（通行人・観客など）を英語で（例: Japanese / East Asian / Japanese office workers and students）。空なら指定なし。LTX は日本の街並みでも背景の人を欧米系で描きがちなので、ここで固定します。上の ethnicity は歌い手だけに効くので、背景の人はこちら。「人が写っていればその人たちは〜」という条件付きの文で入るので、これを書いたせいで居ない群衆が増えることはありません。season を選んでいるときは服装の指定と1文にまとめます"}),
             },
             "optional": {
                 "chain": (CHAIN_TYPE, {"tooltip": "任意。ログ用"}),
@@ -1615,10 +1617,10 @@ class LTXChainAutoScenes:
         return ["", "", "two", "three", "four", "five", "six", "seven", "eight"][n] if 0 <= n <= 8 else str(n)
 
     @classmethod
-    def _cache_path(cls, image, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", motion_speed="auto (as written)", season="auto (from photo)", framing_min="close-up", background_image=None, background_caption=""):
+    def _cache_path(cls, image, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", motion_speed="auto (as written)", season="auto (from photo)", framing_min="close-up", background_people="", background_image=None, background_caption=""):
         d = os.path.join(_chains_root(), "_autoprompt")
         os.makedirs(d, exist_ok=True)
-        key = f'{style}|n{num_singers}|e{ethnicity}|p{performance}|a{age}|c{extra_cameras}|m{microphone}|g{gender}|x{emotion}|xc{emotion_custom}|v{motion}|vc{motion_custom}|h{height}|b{build}|k{camera}|kc{camera_custom}|o{outfit}|l{look}|li{lighting}|s{setting}|w{weather}|ww{weather_when}|f{vfx}|fw{vfx_when}|fc{vfx_custom}|fr{framing_limit}|ms{motion_speed}|se{season}|sv{cls.SEASON_REV}|fm{framing_min}'
+        key = f'{style}|n{num_singers}|e{ethnicity}|p{performance}|a{age}|c{extra_cameras}|m{microphone}|g{gender}|x{emotion}|xc{emotion_custom}|v{motion}|vc{motion_custom}|h{height}|b{build}|k{camera}|kc{camera_custom}|o{outfit}|l{look}|li{lighting}|s{setting}|w{weather}|ww{weather_when}|f{vfx}|fw{vfx_when}|fc{vfx_custom}|fr{framing_limit}|ms{motion_speed}|se{season}|sv{cls.SEASON_REV}|fm{framing_min}|bp{background_people}'
         if setting == cls.SETTING_BACKGROUND_REF and background_image is not None:
             key += '|bg' + hashlib.sha1(np.ascontiguousarray((background_image[:1] * 255).byte().cpu().numpy())).hexdigest()[:12]
         return os.path.join(d, f"scenes_{cls._key(image, num_scenes, key)}.json")
@@ -1652,8 +1654,8 @@ class LTXChainAutoScenes:
         t = t.rstrip(". ").strip()
         return t[0].lower() + t[1:] if t else t
 
-    def check_lazy_status(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", motion_speed="auto (as written)", season="auto (from photo)", framing_min="close-up", chain=None, background_image=None, background_caption=""):
-        if os.path.isfile(self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom, framing_limit, motion_speed, season, framing_min, background_image, background_caption)):
+    def check_lazy_status(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", motion_speed="auto (as written)", season="auto (from photo)", framing_min="close-up", background_people="", chain=None, background_image=None, background_caption=""):
+        if os.path.isfile(self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom, framing_limit, motion_speed, season, framing_min, background_people, background_image, background_caption)):
             return []
         return ["caption"] + (["background_caption"] if setting == self.SETTING_BACKGROUND_REF else [])
 
@@ -1774,7 +1776,7 @@ class LTXChainAutoScenes:
         low = f" {desc.lower()} "
         return any(w in low for w in cls.MIC_WORDS)
 
-    def _build(self, image, num_scenes, style, caption, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", motion_speed="auto (as written)", season="auto (from photo)", framing_min="close-up", background_image=None, background_caption=""):
+    def _build(self, image, num_scenes, style, caption, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", motion_speed="auto (as written)", season="auto (from photo)", framing_min="close-up", background_people="", background_image=None, background_caption=""):
         desc = self._clean_caption(caption)
         mic = self._wants_mic(microphone, desc)
         season_strip = self.SEASON_STRIP.get(season)
@@ -1841,6 +1843,11 @@ class LTXChainAutoScenes:
         # season: a hard constraint, because the thing it fixes is background extras in winter coats in a
         # summer video. It is stated in the character block (repeated in every scene) and again as the last
         # words of the prompt, the two places LTX weighs most.
+        # Who else is in the shot: the season dresses them, `background_people` says who they are (the
+        # singer's `ethnicity` never reaches them, and LTX draws a Western crowd on a Tokyo street unless
+        # told otherwise). Both are written as "any other people visible ...", never as a crowd, or the
+        # model puts one in a shot that had nobody.
+        crowd = " ".join((background_people or "").split()).strip().rstrip(".")
         season_short, season_lock = "", ""
         spec = self.SEASONS.get(season)
         if spec:
@@ -1848,12 +1855,15 @@ class LTXChainAutoScenes:
             own = ("The singer's own outfit is the one described above and does not change with the season."
                    if ns == 1 else
                    "The singers' own outfits are the ones described above and do not change with the season.")
-            season_lock = (f" Season: {season_env}. Exactly the same season in every shot. Anyone else who happens "
-                           f"to be visible in the background wears {season_wear}. Nowhere in the shot is there "
-                           f"{season_forbid}. {own}")
+            others = (f"Any other people visible in the background are {crowd} and wear {season_wear}."
+                      if crowd else f"Any other people visible in the background wear {season_wear}.")
+            season_lock = (f" Season: {season_env}. Exactly the same season in every shot. {others} "
+                           f"Nowhere in the shot is there {season_forbid}. {own}")
             if weather in self.SEASON_WEATHER_CLASH.get(season, ()):
                 logging.warning(f"[LTX Chain] Auto Scenes: weather={weather} contradicts season={season} - "
                                 f"the two will fight each other in the prompt")
+        # without a season the same sentence stands on its own
+        crowd_lock = f" Any other people visible in the background are {crowd}." if (crowd and not spec) else ""
         # "(a 25-year-old Japanese woman)" — the noun follows the gender; only written out when
         # the user forced a gender or gave age/ethnicity, so an unlabelled caption stays untouched
         noun = {"female": "woman", "male": "man"}.get(g, "person")
@@ -1875,7 +1885,7 @@ class LTXChainAutoScenes:
             tag = f" ({art(who or noun)} {who + ' ' if who else ''}{noun})" if (who or gtag) else ""
             feat_s = (feat.rsplit(", ", 1)[0] + " and " + feat.rsplit(", ", 1)[1]) if set_txt else feat
             character = (f"Image 1 is the singer{tag}: {desc}. The singer's {feat_s}{'' if set_txt else ' and the setting'} "
-                         f"stay exactly the same as in the reference image in every shot.{set_lock}{outfit_lock}{season_lock}{age_lock}{body_lock}")
+                         f"stay exactly the same as in the reference image in every shot.{set_lock}{outfit_lock}{season_lock}{crowd_lock}{age_lock}{body_lock}")
         else:
             word = self._num_word(ns)
             pre = body + " ".join(x for x in (agep, eth, gtag) if x)
@@ -1885,7 +1895,7 @@ class LTXChainAutoScenes:
             allof = "Both of them" if ns == 2 else f"All {word} of them"
             character = (f"Image 1 shows the {word} singers ({group}): {desc}. {allof} appear together "
                          f"in every shot; their faces, hair{' and' if set_txt else ','} clothing{'' if set_txt else ' and the setting'} stay exactly the same as in "
-                         f"the reference image.{set_lock}{outfit_lock}{season_lock}{age_lock}{body_lock}")
+                         f"the reference image.{set_lock}{outfit_lock}{season_lock}{crowd_lock}{age_lock}{body_lock}")
         # camera move: custom text > preset > the follow-camera a moving motion asks for > locked (None)
         cc = " ".join((camera_custom or "").split()).strip()
         if cc:
@@ -1904,7 +1914,8 @@ class LTXChainAutoScenes:
         act_intro = self._intro(ns, mic, emo_listen, mot_listen) + tail_cam
         # look + lighting presets + free style text -> the tail of every scene prompt
         parts = [self.LOOKS.get(look, ""), self.LIGHTINGS.get(lighting, ""),
-                 self._strip_season(style.strip(), season_strip, "the style text"), season_short]
+                 self._strip_season(style.strip(), season_strip, "the style text"), season_short,
+                 (f"the people in the background are {crowd}" if crowd else "")]
         tail_txt = ", ".join(x.strip().rstrip(",.") for x in parts if x and x.strip())
         tail = ("\n\n" + tail_txt) if tail_txt else ""
         # camera rotation = `num_scenes` built-in angles + any custom angles the user added. The two
@@ -1970,22 +1981,22 @@ class LTXChainAutoScenes:
                 "look": look, "lighting": lighting, "setting": setting, "weather": weather, "weather_when": weather_when,
                 "vfx": (vfx_custom.strip() or vfx), "vfx_when": vfx_when, "framing_limit": framing_limit,
                 "motion_speed": motion_speed, "season": season,
-                "framing_min": framing_min}
+                "framing_min": framing_min, "background_people": crowd}
 
-    def run(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", motion_speed="auto (as written)", season="auto (from photo)", framing_min="close-up", chain=None, background_image=None, background_caption=""):
-        path = self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom, framing_limit, motion_speed, season, framing_min, background_image, background_caption)
+    def run(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", motion_speed="auto (as written)", season="auto (from photo)", framing_min="close-up", background_people="", chain=None, background_image=None, background_caption=""):
+        path = self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom, framing_limit, motion_speed, season, framing_min, background_people, background_image, background_caption)
         clip = (chain.get("index", 0) + 1) if chain else 1
         if os.path.isfile(path):
             data = json.load(open(path, encoding="utf-8"))
             logging.info(f"[LTX Chain] clip {clip}: using cached auto-scenes {os.path.basename(path)}")
         else:
-            data = self._build(image, num_scenes, style, caption or "", num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom, framing_limit, motion_speed, season, framing_min, background_image, background_caption)
+            data = self._build(image, num_scenes, style, caption or "", num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom, framing_limit, motion_speed, season, framing_min, background_people, background_image, background_caption)
             json.dump(data, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
             logging.info(f"[LTX Chain] clip {clip}: analysed image -> auto-scenes cached ({os.path.basename(path)}), "
                          f"microphone={microphone} -> {'in frame' if data.get('microphone') else 'none'}, "
                          f"gender={gender} -> {data.get('gender')}, emotion={data.get('emotion')}, motion={data.get('motion')}, "
                          f"height={height}, build={build}, camera={data.get('camera')}, season={season}, "
-                         f"framing_min={framing_min}")
+                         f"framing_min={framing_min}, background_people={background_people!r}")
             logging.info(f"[LTX Chain] character: {data['character']}")
             import gc
             import comfy.model_management as mm

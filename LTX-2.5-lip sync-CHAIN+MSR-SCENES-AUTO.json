@@ -10180,7 +10180,8 @@
         "wide",
         "auto (as written)",
         "auto (from photo)",
-        "close-up"
+        "close-up",
+        ""
       ],
       "widgets_values_named": {
         "num_scenes": 4,
@@ -10212,7 +10213,8 @@
         "framing_limit": "wide",
         "motion_speed": "auto (as written)",
         "season": "auto (from photo)",
-        "framing_min": "close-up"
+        "framing_min": "close-up",
+        "background_people": ""
       },
       "color": "#2a3f2a",
       "bgcolor": "#38513a"

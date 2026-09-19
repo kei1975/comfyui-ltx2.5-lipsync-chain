@@ -341,6 +341,11 @@ State に `resolution` を追加。LTX-2.5 が安全に出せる 64 の倍数プ
   一番近いアングルを1つ。`web/framing_notice.js` は widget を名前で引いているので変更不要
 - 併せて、膝上アングルの "standing upright and facing the camera" は歩き系 motion と矛盾するので
   "already moving, facing the camera" に置換（sitting の "seated" 置換と同じ場所）
+- Auto Scenes `background_people`: 背景に写る人（通行人・観客）の指定。`ethnicity` は歌い手の説明にしか
+  入らないので、東京の街設定でも背景は欧米系で描かれていた（LTX の素の prior）。人物ブロックと tail の
+  2 か所に入れる。文面は season の服装指定と同じく "Any other people visible in the background are …" の
+  条件付き（"the crowd" 等と書くと誰も居ないショットに群衆が湧く）。season を選んでいるときは
+  "… are {crowd} and wear {季節の服装}." と 1 文にまとめ、season なしのときは単独文で入れる
 
 ## 9. このフォルダの中身（Video-Sticher プロジェクト内のバックアップ）
 
