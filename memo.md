@@ -311,6 +311,36 @@ State に `resolution` を追加。LTX-2.5 が安全に出せる 64 の倍数プ
   `motion_speed`（`MOTION_SPEEDS`: very slow / slow / normal / brisk / fast / on the beat / half-time / double-time）。
   選ぶとプリセット文の slowly / steadily / at a steady pace（`SPEED_WORDS`）を除去してから pace 句を末尾に付ける。
   none / standing still / sitting では無視
+- Auto Scenes `season`（`SEASONS`: early spring / spring (cherry blossom) / late spring / early summer /
+  midsummer / early autumn / late autumn / winter / midwinter (snow)）。困っていたのは「夏の曲なのに背景の
+  通行人が冬物」なので、季節名だけでは色調としか読まれない前提で (1) 景色（葉・地面・空気）(2) 背景に写る
+  人の服装 (3) 出してはいけないもの（雪・コート・マフラー等）を文章で書く。人物ブロック（全シーンに
+  繰り返される）の outfit_lock 直後と、プロンプト末尾の tail の 2 か所に入れる（LTX が強く見る位置）。
+  背景の人は "Anyone else who happens to be visible in the background wears …" と条件付きで書く
+  （"the crowd" 等と書くと、いない群衆を足してしまう）。歌い手本人の服は参照画像／`outfit` に固定したまま
+  なので、季節文で上書きしないよう明示的に除外。光・空は書かない（`lighting` / `look` / `setting` の担当。
+  夜の街 × 真夏で喧嘩する）。`SEASON_WEATHER_CLASH` で weather との矛盾（真夏×雪、冬×花びら等）を
+  logging.warning
+- 20260920_v01（early summer なのに背景の人が上はフード・下は短パン）の原因は季節文ではなく `style` 欄の
+  自分で書いた一文 "Japanese pedestrians in winter coats"。季節文と同じ一文の中に並び、具体的な方が勝つ。
+  → `SEASON_STRIP` / `STRIP_WINTER_WEAR` / `STRIP_SUMMER_WEAR` で、季節を選んだときは `style` と背景参照
+  キャプションから矛盾する服装を削除（`_strip_season`、削除内容は logging.info）。歌い手のキャプションと
+  `outfit` は対象外（季節は歌い手の服に触らない約束なので）。季節の形容詞付き（heavy coats / long coat）か、
+  その季節固有の品（scarves / sandals）だけを落とし、ただの "in a coat" は残す。列挙（heavy coats and
+  scarves）は `_MORE` で丸ごと食べる（そうしないと "and scarves" が残る）
+- プロンプトはキャッシュされるので、季節の文面を変えたら `SEASON_REV` を上げること（キャッシュキーの `|sv`）。
+  上げないと解析済みの画像には古い文面が出続ける
+- 20260920_v02「シーンを1にしたのに冒頭でシーンが切り替わる」: 切り替わっていない（plan.json は両クリップとも
+  scene 0 / scene_start false）。実際は clip 1 の最初の 4〜12 フレームで構図が腰上→全身に飛んでいた。
+  開始画像が腰上なのに motion=strolling（"already mid-stride at the very first frame"）＋ outfit に足首の
+  ジーンズと靴、で脚を映さざるを得ず、モデルが即座に引いて解決していた。`num_scenes`=1 だと内蔵アングルは
+  `base[:1]`＝必ず腰上で、他のアングルを1つだけ選ぶ手段が無かったのが穴
+- → `framing_min`（寄り側の下限。既定 close-up＝制限なし）を追加。アングル選択を「先に範囲で絞ってから
+  num_scenes 個取る」に変更（旧: 先に num_scenes 個取ってから上限で捨てる）。既定値どうしなら結果は
+  base[:n] で従来と同一。上下が逆転したら framing_limit を優先して warning、範囲内に1つも無ければ
+  一番近いアングルを1つ。`web/framing_notice.js` は widget を名前で引いているので変更不要
+- 併せて、膝上アングルの "standing upright and facing the camera" は歩き系 motion と矛盾するので
+  "already moving, facing the camera" に置換（sitting の "seated" 置換と同じ場所）
 
 ## 9. このフォルダの中身（Video-Sticher プロジェクト内のバックアップ）
 

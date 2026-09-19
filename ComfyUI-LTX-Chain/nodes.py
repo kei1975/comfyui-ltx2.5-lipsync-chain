@@ -1140,6 +1140,117 @@ class LTXChainAutoScenes:
     }
     SETTING_BACKGROUND_REF = "background reference (REF 5)"
 
+    # Built prompts are cached by their settings, so a change to the wording below would keep serving the
+    # old text for an image that had already been analysed. Bump this whenever that wording changes.
+    SEASON_REV = 2
+
+    # season. What gives a season away is the background - the trees, the ground, and above all what
+    # the OTHER people in the shot are wearing - so every entry spells those out and names what must
+    # not appear at all ("summer" on its own is read as a colour grade and ignored). The phrasing is
+    # conditional ("anyone else who happens to be visible"), because naming a crowd makes LTX add one.
+    # The singer is excluded on purpose: that outfit is locked to the reference photo / `outfit`.
+    # The season never describes the light or the sky - `lighting` / `look` / `setting` own those, and a
+    # "bright summer sky" would fight a night street. It describes leaves, ground, air and clothing only.
+    # (tail phrase, what the place looks like, what other people wear, what must not appear)
+    SEASONS = {
+        "auto (from photo)": None,
+        "early spring": (
+            "early spring, bare branches just budding, everyone in light spring clothing",
+            "early spring, the trees just budding, the first green shoots and early flowers, the air still cool",
+            "light spring clothes - long sleeves, a thin jacket or cardigan, nothing heavier",
+            "snow, thick winter coats, down jackets, fur, thick scarves, gloves, knitted hats, or autumn leaves "
+            "on the ground"),
+        "spring (cherry blossom)": (
+            "cherry blossom season, everyone in light spring clothing",
+            "cherry blossom season, the cherry trees in full pink bloom and petals drifting in the mild air",
+            "light spring clothes - long sleeves or a light blouse, a thin jacket or cardigan at most",
+            "snow, winter coats, down jackets, fur, scarves, gloves, knitted hats, or bare autumn branches"),
+        "late spring": (
+            "late spring, fresh green leaves and flowers, everyone in light spring clothing",
+            "late spring, fresh bright green leaves everywhere and flowers in bloom, mild warm air",
+            "light spring clothes - short or long sleeves and a thin cardigan at most, bare arms are fine",
+            "snow, coats, down jackets, fur, scarves, gloves, knitwear, or autumn leaves"),
+        "early summer": (
+            "early summer, lush deep green, everyone in light summer clothing",
+            "early summer, lush deep green foliage and warm air, a soft breeze in the leaves",
+            "light summer clothes - short sleeves and thin bright fabrics, bare arms",
+            "snow, coats, jackets, hoodies, sweatshirts, scarves, gloves, knitwear, boots, or autumn colours"),
+        "midsummer": (
+            "the height of summer, hot summer air, everyone in summer clothing, no winter clothes anywhere",
+            "the height of summer, lush green leaves and hot shimmering summer air",
+            "high-summer clothes - short sleeves or sleeveless tops, shorts or thin skirts, sandals, bare arms "
+            "and legs",
+            "snow, or any coat, jacket, hoodie, sweatshirt, scarf, glove, knitwear, boot or heavy long "
+            "sleeve on anyone"),
+        "early autumn": (
+            "early autumn, the first leaves turning, everyone in light autumn clothing",
+            "early autumn, the first leaves turning yellow and red, cool crisp air",
+            "light autumn clothes - long sleeves and a thin jacket or cardigan",
+            "snow, heavy winter coats, down jackets, fur, thick scarves, gloves, or cherry blossom"),
+        "late autumn": (
+            "late autumn, deep red and gold foliage, everyone in autumn clothing",
+            "late autumn, deep red and gold foliage and fallen leaves on the ground, cold crisp air",
+            "autumn clothes - long sleeves and a jacket or a light coat over a sweater",
+            "snow, ice, heavy down parkas, fur hats, or summer clothing such as short sleeves, shorts and sandals"),
+        "winter": (
+            "winter, bare trees and cold air, everyone in winter clothing",
+            "winter, the trees bare and the air cold, breath faintly visible, no snow on the ground",
+            "winter clothes - warm coats, scarves, knitwear and gloves",
+            "summer clothing - no short sleeves, no shorts and no sandals - and no green summer foliage or blossom"),
+        "midwinter (snow)": (
+            "midwinter, snow everywhere, everyone in heavy winter clothing",
+            "midwinter, snow lying on the ground and the roofs, bare frozen trees, freezing air and breath "
+            "visible",
+            "heavy winter clothes - thick coats, scarves, knitted hats, gloves and boots",
+            "summer clothing - no short sleeves, no shorts and no sandals - and no green summer foliage or blossom"),
+    }
+    # weather choices that fight a season (logged, not blocked - the contrast may be wanted)
+    SEASON_WEATHER_CLASH = {
+        "early spring": ("light snow", "heavy snow", "falling leaves"),
+        "spring (cherry blossom)": ("light snow", "heavy snow", "falling leaves"),
+        "late spring": ("light snow", "heavy snow", "falling leaves"),
+        "early summer": ("light snow", "heavy snow", "falling petals", "falling leaves"),
+        "midsummer": ("light snow", "heavy snow", "falling petals", "falling leaves"),
+        "early autumn": ("light snow", "heavy snow", "falling petals"),
+        "late autumn": ("falling petals",),
+        "winter": ("falling petals", "falling leaves"),
+        "midwinter (snow)": ("falling petals", "falling leaves"),
+    }
+    # Clothing in the user's OWN free text (`style`, the background reference caption) that contradicts the
+    # season. "Japanese pedestrians in winter coats" typed into `style` lands in the same sentence as the
+    # season phrase and wins by being the more concrete of the two, so it is removed rather than argued
+    # with - the same move as stripping "tall" from the caption when a height is forced. A bare "in a coat"
+    # is left alone: only a winter adjective or an unmistakably winter garment triggers it.
+    # A garment is thrown out when it carries a season adjective ("heavy coats", "long coat") or is a
+    # garment of that season and nothing else ("scarves", "sandals"). A plain "in a coat" survives.
+    # _ITEM matches one garment, and the pattern then eats the rest of the list, or "and scarves" would
+    # be left dangling behind the piece that was removed.
+    _WEAR = r"\s+(?:in|wearing|dressed\s+in|clad\s+in)\s+(?:(?:a|an|the|their|his|her)\s+)?"
+    _WADJ = r"(?:heavy|thick|warm|big|long|puffy|padded|quilted|down|fur|fur-lined|woolly|woollen|"
+    _WADJ += r"woolen|winter|snow)"
+    _WANY = r"(?:coats?|jackets?|clothes|clothing|outfits?|gear|wear|tops?|sweaters?|jumpers?|hats?|boots)"
+    _WSOLO = (r"(?:parkas?|puffer\s+jackets?|hoodies|hooded\s+\w+|scarves|scarfs|mufflers|gloves|"
+              r"mittens|knitted\s+hats?|beanies|earmuffs|knitwear)")
+    _SADJ = r"(?:light|thin|summer)"
+    _SANY = r"(?:clothes|clothing|outfits?|wear|dresses|tops?)"
+    _SSOLO = (r"(?:short[-\s]sleeved?\s+\w+|t-?shirts?|tank\s+tops?|shorts|sandals|flip-?flops|"
+              r"swimsuits?|bikinis?|sundresses)")
+    _WITEM = "(?:(?:" + _WADJ + r"\s+)+" + _WANY + "|" + _WSOLO + ")"
+    _SITEM = "(?:(?:" + _SADJ + r"\s+)+" + _SANY + "|" + _SSOLO + ")"
+    _MORE = r"(?:\s*(?:,|and|&)\s*(?:(?:a|an|the|their|his|her)\s+)?%s)*"
+    STRIP_WINTER_WEAR = (
+        _WEAR + _WITEM + (_MORE % _WITEM),
+        r",?\s*\b(?:winter|snow)\s+" + _WANY + r"\b",
+    )
+    STRIP_SUMMER_WEAR = (
+        _WEAR + _SITEM + (_MORE % _SITEM),
+        r",?\s*\bsummer\s+" + _SANY + r"\b",
+    )
+    # which of the two a season throws out ("late autumn" keeps coats: they belong there)
+    SEASON_STRIP = {"early spring": "winter", "spring (cherry blossom)": "winter", "late spring": "winter",
+                    "early summer": "winter", "midsummer": "winter", "early autumn": "winter",
+                    "late autumn": "summer", "winter": "summer", "midwinter (snow)": "summer"}
+
     # weather / atmosphere: written as a continuous, visible effect so it does not fade out mid-clip.
     # `weather_when` decides which camera blocks get it (scenes cycle through the blocks).
     WEATHERS = {
@@ -1476,6 +1587,10 @@ class LTXChainAutoScenes:
                                   "tooltip": "一番引いた構図をどこまで許すか（ズームアウトの上限）。これより広い内蔵アングルはローテーションから外れます（close-up=顔アップまで / chest-up=胸上まで / waist-up=腰上まで / mid-thigh=膝上まで / full body / wide=制限なし）。顔の崩れは「出力フレーム内の顔の画素数」で決まり、目安は顔の高さ ≥120px 安定 / 90〜120px 境界 / <90px 崩れやすい（Stage 1 は半分の解像度、VAE は 32px=1セル）。State の解像度と合わせた推定値がノード下部に表示されます。extra_cameras の自作アングルは対象外"}),
                 "motion_speed": (list(cls.MOTION_SPEEDS.keys()), {"default": "auto (as written)",
                                  "tooltip": "歩く・走る・踊るときの速さ。auto=プリセットの文のまま（walking は slowly） / very slow / slow / normal / brisk=速歩き / fast / on the beat=拍に足を合わせる / half-time=2拍に1歩 / double-time=1拍に2歩。LTX は音声も見ているので beat 系は曲のテンポに寄ります。速さは hand-off で次クリップに引き継がれます。motion が none / standing still / sitting のときは無視"}),
+                "season": (list(cls.SEASONS.keys()), {"default": "auto (from photo)",
+                           "tooltip": "季節。auto=写真のまま（指定なし）。選ぶと全シーンでその季節を固定し、背景に写っている人の服装まで指定します（真夏なら半袖・サンダル、コート/マフラー/手袋は出さない、雪も無し）。「夏の曲なのに背景の通行人が冬物」を防ぐための項目です。歌い手本人の服は参照画像／outfit のままで季節では変わりません（歌い手も季節に合わせたいときは outfit に書く）。early spring=早春 / spring (cherry blossom)=桜 / late spring=晩春 / early summer=初夏 / midsummer=真夏 / early autumn=初秋 / late autumn=晩秋 / winter=冬（雪なし）/ midwinter (snow)=真冬（雪あり）。style 欄に季節と矛盾する服装（例: Japanese pedestrians in winter coats）を書いていると、そちらの方が具体的で勝ってしまうため自動で削除します（削除内容はコンソールに出ます）。weather と矛盾する組み合わせ（真夏×雪 など）も警告を出します。屋内の setting では効果は薄い"}),
+                "framing_min": (cls.FRAMING_LIMITS, {"default": "close-up",
+                                "tooltip": "一番寄った構図の下限（ズームインの上限）。close-up=制限なし（既定・今までと同じ）。これより寄った内蔵アングルはローテーションから外れるので、`framing_limit`（広い側の上限）と挟んで「この範囲の構図だけ使う」を作れます。num_scenes=1 のときは、条件に合う内蔵アングルの先頭が 1 つだけ使われます（既定では腰上。mid-thigh にすると膝上アングルになる）。歩く・踊る motion で脚や靴を見せたいのに開始画像が腰上だと、モデルが冒頭で勝手に引いてカットのように見えるので、その対策に。framing_limit より広い値を入れた場合は framing_limit を優先します。extra_cameras の自作アングルは対象外"}),
             },
             "optional": {
                 "chain": (CHAIN_TYPE, {"tooltip": "任意。ログ用"}),
@@ -1500,10 +1615,10 @@ class LTXChainAutoScenes:
         return ["", "", "two", "three", "four", "five", "six", "seven", "eight"][n] if 0 <= n <= 8 else str(n)
 
     @classmethod
-    def _cache_path(cls, image, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", motion_speed="auto (as written)", background_image=None, background_caption=""):
+    def _cache_path(cls, image, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", motion_speed="auto (as written)", season="auto (from photo)", framing_min="close-up", background_image=None, background_caption=""):
         d = os.path.join(_chains_root(), "_autoprompt")
         os.makedirs(d, exist_ok=True)
-        key = f'{style}|n{num_singers}|e{ethnicity}|p{performance}|a{age}|c{extra_cameras}|m{microphone}|g{gender}|x{emotion}|xc{emotion_custom}|v{motion}|vc{motion_custom}|h{height}|b{build}|k{camera}|kc{camera_custom}|o{outfit}|l{look}|li{lighting}|s{setting}|w{weather}|ww{weather_when}|f{vfx}|fw{vfx_when}|fc{vfx_custom}|fr{framing_limit}|ms{motion_speed}'
+        key = f'{style}|n{num_singers}|e{ethnicity}|p{performance}|a{age}|c{extra_cameras}|m{microphone}|g{gender}|x{emotion}|xc{emotion_custom}|v{motion}|vc{motion_custom}|h{height}|b{build}|k{camera}|kc{camera_custom}|o{outfit}|l{look}|li{lighting}|s{setting}|w{weather}|ww{weather_when}|f{vfx}|fw{vfx_when}|fc{vfx_custom}|fr{framing_limit}|ms{motion_speed}|se{season}|sv{cls.SEASON_REV}|fm{framing_min}'
         if setting == cls.SETTING_BACKGROUND_REF and background_image is not None:
             key += '|bg' + hashlib.sha1(np.ascontiguousarray((background_image[:1] * 255).byte().cpu().numpy())).hexdigest()[:12]
         return os.path.join(d, f"scenes_{cls._key(image, num_scenes, key)}.json")
@@ -1537,8 +1652,8 @@ class LTXChainAutoScenes:
         t = t.rstrip(". ").strip()
         return t[0].lower() + t[1:] if t else t
 
-    def check_lazy_status(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", motion_speed="auto (as written)", chain=None, background_image=None, background_caption=""):
-        if os.path.isfile(self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom, framing_limit, motion_speed, background_image, background_caption)):
+    def check_lazy_status(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", motion_speed="auto (as written)", season="auto (from photo)", framing_min="close-up", chain=None, background_image=None, background_caption=""):
+        if os.path.isfile(self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom, framing_limit, motion_speed, season, framing_min, background_image, background_caption)):
             return []
         return ["caption"] + (["background_caption"] if setting == self.SETTING_BACKGROUND_REF else [])
 
@@ -1567,6 +1682,22 @@ class LTXChainAutoScenes:
         t = re.sub(r"\s{2,}", " ", t); t = re.sub(r"\s+,", ",", t); t = re.sub(r",\s*,", ",", t)
         t = re.sub(r"\ba\s+(?=[aeiouAEIOU])", "an ", t); t = re.sub(r"\ban\s+(?=[^aeiouAEIOU\W])", "a ", t)
         return t.strip().rstrip(",")
+
+    @classmethod
+    def _strip_season(cls, text, kind, what):
+        """Drop season-contradicting clothing from one piece of free text. Only `style` and the background
+        reference caption go through here - never the singer's own caption or `outfit`, which the season is
+        not allowed to touch."""
+        if not kind or not (text or "").strip():
+            return text
+        t = text
+        for pat in (cls.STRIP_WINTER_WEAR if kind == "winter" else cls.STRIP_SUMMER_WEAR):
+            t = re.sub(pat, "", t, flags=re.I)
+        t = re.sub(r"\s{2,}", " ", t); t = re.sub(r"\s+,", ",", t); t = re.sub(r",\s*,", ",", t)
+        t = t.strip().strip(",").strip()
+        if t != text:
+            logging.info(f"[LTX Chain] Auto Scenes: season dropped {kind} clothing from {what} -> {t}")
+        return t
 
     @classmethod
     def _detect_gender(cls, desc):
@@ -1643,9 +1774,10 @@ class LTXChainAutoScenes:
         low = f" {desc.lower()} "
         return any(w in low for w in cls.MIC_WORDS)
 
-    def _build(self, image, num_scenes, style, caption, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", motion_speed="auto (as written)", background_image=None, background_caption=""):
+    def _build(self, image, num_scenes, style, caption, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", motion_speed="auto (as written)", season="auto (from photo)", framing_min="close-up", background_image=None, background_caption=""):
         desc = self._clean_caption(caption)
         mic = self._wants_mic(microphone, desc)
+        season_strip = self.SEASON_STRIP.get(season)
         hgt, hdesc = self.HEIGHTS.get(height, ("", ""))
         bld, bdesc = self.BUILDS.get(build, ("", ""))
         if hgt:
@@ -1702,9 +1834,26 @@ class LTXChainAutoScenes:
         # setting preset: the scene deliberately replaces the photo's background
         set_txt = self.SETTINGS.get(setting, "")
         if setting == self.SETTING_BACKGROUND_REF and (background_caption or "").strip():
-            set_txt += ": " + self._clean_caption(background_caption)
+            set_txt += ": " + self._strip_season(self._clean_caption(background_caption), season_strip,
+                                                 "the background reference caption")
         set_lock = (f" Setting: {set_txt}, replacing the background of the reference photo; the same setting in "
                     f"every shot.") if set_txt else ""
+        # season: a hard constraint, because the thing it fixes is background extras in winter coats in a
+        # summer video. It is stated in the character block (repeated in every scene) and again as the last
+        # words of the prompt, the two places LTX weighs most.
+        season_short, season_lock = "", ""
+        spec = self.SEASONS.get(season)
+        if spec:
+            season_short, season_env, season_wear, season_forbid = spec
+            own = ("The singer's own outfit is the one described above and does not change with the season."
+                   if ns == 1 else
+                   "The singers' own outfits are the ones described above and do not change with the season.")
+            season_lock = (f" Season: {season_env}. Exactly the same season in every shot. Anyone else who happens "
+                           f"to be visible in the background wears {season_wear}. Nowhere in the shot is there "
+                           f"{season_forbid}. {own}")
+            if weather in self.SEASON_WEATHER_CLASH.get(season, ()):
+                logging.warning(f"[LTX Chain] Auto Scenes: weather={weather} contradicts season={season} - "
+                                f"the two will fight each other in the prompt")
         # "(a 25-year-old Japanese woman)" — the noun follows the gender; only written out when
         # the user forced a gender or gave age/ethnicity, so an unlabelled caption stays untouched
         noun = {"female": "woman", "male": "man"}.get(g, "person")
@@ -1726,7 +1875,7 @@ class LTXChainAutoScenes:
             tag = f" ({art(who or noun)} {who + ' ' if who else ''}{noun})" if (who or gtag) else ""
             feat_s = (feat.rsplit(", ", 1)[0] + " and " + feat.rsplit(", ", 1)[1]) if set_txt else feat
             character = (f"Image 1 is the singer{tag}: {desc}. The singer's {feat_s}{'' if set_txt else ' and the setting'} "
-                         f"stay exactly the same as in the reference image in every shot.{set_lock}{outfit_lock}{age_lock}{body_lock}")
+                         f"stay exactly the same as in the reference image in every shot.{set_lock}{outfit_lock}{season_lock}{age_lock}{body_lock}")
         else:
             word = self._num_word(ns)
             pre = body + " ".join(x for x in (agep, eth, gtag) if x)
@@ -1736,7 +1885,7 @@ class LTXChainAutoScenes:
             allof = "Both of them" if ns == 2 else f"All {word} of them"
             character = (f"Image 1 shows the {word} singers ({group}): {desc}. {allof} appear together "
                          f"in every shot; their faces, hair{' and' if set_txt else ','} clothing{'' if set_txt else ' and the setting'} stay exactly the same as in "
-                         f"the reference image.{set_lock}{outfit_lock}{age_lock}{body_lock}")
+                         f"the reference image.{set_lock}{outfit_lock}{season_lock}{age_lock}{body_lock}")
         # camera move: custom text > preset > the follow-camera a moving motion asks for > locked (None)
         cc = " ".join((camera_custom or "").split()).strip()
         if cc:
@@ -1754,20 +1903,31 @@ class LTXChainAutoScenes:
         act_sing = self._sing(ns, clause, mic, emo_sing, mot_sing) + tail_cam
         act_intro = self._intro(ns, mic, emo_listen, mot_listen) + tail_cam
         # look + lighting presets + free style text -> the tail of every scene prompt
-        parts = [self.LOOKS.get(look, ""), self.LIGHTINGS.get(lighting, ""), style.strip()]
+        parts = [self.LOOKS.get(look, ""), self.LIGHTINGS.get(lighting, ""),
+                 self._strip_season(style.strip(), season_strip, "the style text"), season_short]
         tail_txt = ", ".join(x.strip().rstrip(",.") for x in parts if x and x.strip())
         tail = ("\n\n" + tail_txt) if tail_txt else ""
-        # camera rotation = the first `num_scenes` built-in angles + any custom angles the user added
+        # camera rotation = `num_scenes` built-in angles + any custom angles the user added. The two
+        # framing bounds pick the angles FIRST and the count is taken from what is left, so num_scenes=1
+        # with framing_min=mid-thigh gives the mid-thigh angle rather than the waist-up one it would
+        # otherwise always start from. With the bounds wide open (the defaults) this is base[:num_scenes],
+        # exactly as before.
         extras = [ln.strip() for ln in (extra_cameras or "").replace("\r", "").split("\n") if ln.strip()]
         base = self.CAMERAS_MIC if mic else self.CAMERAS_NOMIC
-        limit = self.FRAMING_RANK.get(framing_limit, 99)
-        chosen = [c for c, fr in zip(base[:max(1, int(num_scenes))], self.ANGLE_FRAMING)
-                  if self.FRAMING_RANK.get(fr, 0) <= limit]
-        if not chosen:  # a limit tighter than every selected angle: keep the tightest one
-            chosen = [base[1]]
-        dropped = max(1, int(num_scenes)) - len(chosen)
-        if dropped:
-            logging.info(f"[LTX Chain] framing_limit={framing_limit}: {dropped} built-in angle(s) wider than that dropped")
+        want = max(1, int(num_scenes))
+        lo = self.FRAMING_RANK.get(framing_min, 0)
+        hi = self.FRAMING_RANK.get(framing_limit, 99)
+        if lo > hi:  # bounds crossed - the widest-allowed wins, since that is the one that breaks faces
+            logging.warning(f"[LTX Chain] framing_min={framing_min} is wider than framing_limit="
+                            f"{framing_limit} - ignoring framing_min")
+            lo = 0
+        pool = [(c, self.FRAMING_RANK.get(fr, 0)) for c, fr in zip(base, self.ANGLE_FRAMING)]
+        chosen = [c for c, r in pool if lo <= r <= hi][:want]
+        if not chosen:  # no built-in angle inside the band: the one nearest to it
+            chosen = [min(pool, key=lambda p: lo - p[1] if p[1] < lo else p[1] - hi)[0]]
+        if len(chosen) < want:
+            logging.info(f"[LTX Chain] framing_min={framing_min} / framing_limit={framing_limit}: "
+                         f"{len(chosen)} built-in angle(s) fit the range, {want} asked for")
         cams = chosen + extras
         if cam_move == "mix":
             moving = motion in self.MOVING_MOTIONS or bool((motion_custom or "").strip())
@@ -1777,6 +1937,12 @@ class LTXChainAutoScenes:
             cams = [self._apply_camera(c, cam_move) for c in cams]
         if motion == "sitting" and not (motion_custom or "").strip():
             cams = [c.replace("standing upright", "seated") for c in cams]
+        elif motion in self.MOVING_MOTIONS and not (motion_custom or "").strip():
+            # the mid-thigh angle asks the singer to stand upright, which a walking one cannot do -
+            # and that is the angle a moving motion lands on once framing_min keeps the legs in frame
+            cams = [c.replace("standing upright and facing the camera", "already moving, facing the camera")
+                     .replace("standing upright at the microphone", "already moving, at the microphone")
+                    for c in cams]
         if ns > 1:  # phrase every angle for more than one person
             cams = [c.replace("the singer's", "the singers'").replace("the singer ", "the singers ")
                      .replace("at the singer", "at the singers").replace("the singer,", "the singers,")
@@ -1803,21 +1969,23 @@ class LTXChainAutoScenes:
                 "camera": (camera_custom.strip() or camera), "outfit": outfit_txt,
                 "look": look, "lighting": lighting, "setting": setting, "weather": weather, "weather_when": weather_when,
                 "vfx": (vfx_custom.strip() or vfx), "vfx_when": vfx_when, "framing_limit": framing_limit,
-                "motion_speed": motion_speed}
+                "motion_speed": motion_speed, "season": season,
+                "framing_min": framing_min}
 
-    def run(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", motion_speed="auto (as written)", chain=None, background_image=None, background_caption=""):
-        path = self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom, framing_limit, motion_speed, background_image, background_caption)
+    def run(self, image, caption, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", motion_speed="auto (as written)", season="auto (from photo)", framing_min="close-up", chain=None, background_image=None, background_caption=""):
+        path = self._cache_path(image, num_scenes, style, num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom, framing_limit, motion_speed, season, framing_min, background_image, background_caption)
         clip = (chain.get("index", 0) + 1) if chain else 1
         if os.path.isfile(path):
             data = json.load(open(path, encoding="utf-8"))
             logging.info(f"[LTX Chain] clip {clip}: using cached auto-scenes {os.path.basename(path)}")
         else:
-            data = self._build(image, num_scenes, style, caption or "", num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom, framing_limit, motion_speed, background_image, background_caption)
+            data = self._build(image, num_scenes, style, caption or "", num_singers, ethnicity, performance, age, extra_cameras, microphone, gender, emotion, emotion_custom, motion, motion_custom, height, build, camera, camera_custom, outfit, look, lighting, setting, weather, weather_when, vfx, vfx_when, vfx_custom, framing_limit, motion_speed, season, framing_min, background_image, background_caption)
             json.dump(data, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
             logging.info(f"[LTX Chain] clip {clip}: analysed image -> auto-scenes cached ({os.path.basename(path)}), "
                          f"microphone={microphone} -> {'in frame' if data.get('microphone') else 'none'}, "
                          f"gender={gender} -> {data.get('gender')}, emotion={data.get('emotion')}, motion={data.get('motion')}, "
-                         f"height={height}, build={build}, camera={data.get('camera')}")
+                         f"height={height}, build={build}, camera={data.get('camera')}, season={season}, "
+                         f"framing_min={framing_min}")
             logging.info(f"[LTX Chain] character: {data['character']}")
             import gc
             import comfy.model_management as mm

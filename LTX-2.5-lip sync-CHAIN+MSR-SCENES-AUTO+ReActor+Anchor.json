@@ -10195,7 +10195,9 @@
         "random (about a third)",
         "",
         "wide",
-        "auto (as written)"
+        "auto (as written)",
+        "auto (from photo)",
+        "close-up"
       ],
       "widgets_values_named": {
         "num_scenes": 4,
@@ -10225,7 +10227,9 @@
         "vfx_when": "random (about a third)",
         "vfx_custom": "",
         "framing_limit": "wide",
-        "motion_speed": "auto (as written)"
+        "motion_speed": "auto (as written)",
+        "season": "auto (from photo)",
+        "framing_min": "close-up"
       },
       "color": "#2a3f2a",
       "bgcolor": "#38513a"
