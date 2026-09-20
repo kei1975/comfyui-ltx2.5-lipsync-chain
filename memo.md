@@ -373,6 +373,11 @@ State に `resolution` を追加。LTX-2.5 が安全に出せる 64 の倍数プ
   向けの修正で、all では実質出番なし（無害）
 - stage2_all のまま顔を保ちたい場合の緩和策: 顔の画素を増やす（609x1056、framing_limit を mid-thigh に）、
   clips_per_scene=6〜8 で 60〜80 秒ごとに参照から再アンカー（ディゾルブ 1 回で顔がリセット）、+Anchor ワークフロー（未検証）
+- v08 の背景の男性が水着（タンクトップ・上半身裸・極短ショーツ）: 夏の服装文 "sleeveless tops, thin light
+  fabrics, bare arms" ＋ 9 品目の「誰も着ていない」否定リストが「服を減らせ」と読まれた。服装は「何を着ているか」を
+  男女別・everyday で肯定形に（men: T-shirts or short-sleeved shirts with light trousers / women: light blouses,
+  T-shirts, summer dresses or skirts）、否定リストは冬物だけに縮小、`CROWD_VARIETY` の "each dressed differently"
+  （極端を招く）を "each in their own ordinary everyday clothes, all fully dressed" に。PROMPT_REV=5
 
 ## 9. このフォルダの中身（Video-Sticher プロジェクト内のバックアップ）
 

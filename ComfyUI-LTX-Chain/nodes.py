@@ -1142,12 +1142,13 @@ class LTXChainAutoScenes:
 
     # Built prompts are cached by their settings, so a change to any wording in this class would keep
     # serving the old text for an image that had already been analysed. Bump this whenever wording changes.
-    PROMPT_REV = 4
+    PROMPT_REV = 5
 
     # LTX draws one background person and then copies it: without this the pavement fills with the same
     # slim young woman in the same dress. It is only ever added next to the "any other people visible"
     # clause, so it still cannot conjure a crowd into a shot that had nobody in it.
-    CROWD_VARIETY = "a mix of men and women of different ages and builds, each dressed differently"
+    CROWD_VARIETY = ("a mix of men and women of different ages and builds, each in their own ordinary everyday "
+                     "clothes, all fully dressed")
 
     # season. What gives a season away is the background - the trees, the ground, and above all what
     # the OTHER people in the shot are wearing - so every entry spells those out and names what must
@@ -1156,6 +1157,9 @@ class LTXChainAutoScenes:
     # The singer is excluded on purpose: that outfit is locked to the reference photo / `outfit`.
     # The season never describes the light or the sky - `lighting` / `look` / `setting` own those, and a
     # "bright summer sky" would fight a night street. It describes leaves, ground, air and clothing only.
+    # Clothing is stated as what people DO wear, by gender, as everyday clothes: "sleeveless tops, bare arms"
+    # plus a long list of garments nobody may wear was read as "less clothing" and put the men in swimwear
+    # (v08). The forbidden list names winter garments only.
     # (tail phrase, what the place looks like, what other people wear, what must not appear)
     SEASONS = {
         "auto (from photo)": None,
@@ -1173,19 +1177,20 @@ class LTXChainAutoScenes:
         "late spring": (
             "late spring, fresh green leaves and flowers, everyone in light spring clothing",
             "late spring, fresh bright green leaves everywhere and flowers in bloom, mild warm air",
-            "light spring clothes - short or long sleeves and a thin cardigan at most, bare arms are fine",
+            "light everyday spring clothes - short or long sleeves and a thin cardigan at most",
             "snow, coats, down jackets, fur, scarves, gloves, knitwear, or autumn leaves"),
         "early summer": (
-            "early summer, lush deep green, everyone in light summer clothing",
+            "early summer, lush deep green, everyone in light everyday summer clothes",
             "early summer, lush deep green foliage and warm air, a soft breeze in the leaves",
-            "light summer clothes - short sleeves and thin bright fabrics, bare arms",
-            "snow, coats, jackets, hoodies, sweatshirts, scarves, gloves, knitwear, boots, or autumn colours"),
+            "light everyday summer clothes - T-shirts or short-sleeved shirts with light trousers for the men, "
+            "light blouses, T-shirts or summer dresses for the women",
+            "snow, coats, jackets, hoodies, sweatshirts, scarves, gloves or knitwear"),
         "midsummer": (
-            "the height of summer, hot summer air, everyone in summer clothing, no winter clothes anywhere",
+            "the height of summer, hot summer air, everyone in light everyday summer clothes, no winter clothes anywhere",
             "the height of summer, lush green leaves and hot shimmering summer air",
-            "high-summer clothes - short sleeves or sleeveless tops, thin light fabrics, bare arms",
-            "snow, or any coat, jacket, hoodie, sweatshirt, scarf, glove, knitwear, boot or heavy long "
-            "sleeve on anyone"),
+            "light everyday summer clothes - T-shirts or short-sleeved shirts with light trousers for the men, "
+            "light blouses, T-shirts, summer dresses or skirts for the women",
+            "snow, coats, jackets, hoodies, sweatshirts, scarves, gloves or knitwear"),
         "early autumn": (
             "early autumn, the first leaves turning, everyone in light autumn clothing",
             "early autumn, the first leaves turning yellow and red, cool crisp air",
