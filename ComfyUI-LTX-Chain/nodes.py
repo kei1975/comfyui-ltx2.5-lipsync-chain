@@ -966,8 +966,8 @@ class LTXChainAutoScenes:
         "right third of the frame. Soft key light on the face, the background gently out of focus. Camera locked.",
         "Close-up of the singer's face and the microphone from a three-quarter angle, 100mm lens, shallow "
         "depth of field, the pop filter softly blurred in a corner, the eyes and expression in crisp focus. Camera locked.",
-        "Medium-full shot, the camera at chest height angled very slightly upward so the singer looks tall and "
-        "elegant, 50mm lens, framed from the head to mid-thigh, standing upright at the microphone. The framing "
+        "Medium-full shot, the camera at chest height and level, 50mm lens, framed from the head to mid-thigh, "
+        "the head, neck and shoulders in natural proportion, standing upright at the microphone. The framing "
         "stays exactly the same for the whole shot, camera locked, no zoom and no push-in.",
         "Profile shot from the side, chest up, the microphone between the singer and the camera, 85mm lens, "
         "soft backlight outlining the face and hair. Camera locked.",
@@ -979,8 +979,8 @@ class LTXChainAutoScenes:
         "in the frame. Soft key light on the face, the background gently out of focus. Camera locked.",
         "Close-up of the singer's face from a three-quarter angle, 100mm lens, shallow depth of field, the "
         "background softly blurred, the eyes and expression in crisp focus. Camera locked.",
-        "Medium-full shot, the camera at chest height angled very slightly upward so the singer looks tall and "
-        "elegant, 50mm lens, framed from the head to mid-thigh, standing upright and facing the camera. The framing "
+        "Medium-full shot, the camera at chest height and level, 50mm lens, framed from the head to mid-thigh, "
+        "the head, neck and shoulders in natural proportion, standing upright and facing the camera. The framing "
         "stays exactly the same for the whole shot, camera locked, no zoom and no push-in.",
         "Profile shot from the side, chest up, 85mm lens, soft backlight outlining the face and hair. Camera locked.",
         "Low angle from below looking slightly up at the singer, 50mm lens, the face large in the upper part of "
@@ -1140,9 +1140,9 @@ class LTXChainAutoScenes:
     }
     SETTING_BACKGROUND_REF = "background reference (REF 5)"
 
-    # Built prompts are cached by their settings, so a change to the wording below would keep serving the
-    # old text for an image that had already been analysed. Bump this whenever that wording changes.
-    SEASON_REV = 3
+    # Built prompts are cached by their settings, so a change to any wording in this class would keep
+    # serving the old text for an image that had already been analysed. Bump this whenever wording changes.
+    PROMPT_REV = 4
 
     # LTX draws one background person and then copies it: without this the pavement fills with the same
     # slim young woman in the same dress. It is only ever added next to the "any other people visible"
@@ -1624,7 +1624,7 @@ class LTXChainAutoScenes:
     def _cache_path(cls, image, num_scenes, style, num_singers=1, ethnicity="", performance="restrained", age="", extra_cameras="", microphone="auto", gender="auto", emotion="none", emotion_custom="", motion="none", motion_custom="", height="none", build="none", camera="auto", camera_custom="", outfit="", look="custom (style text only)", lighting="auto (from photo)", setting="auto (from photo)", weather="none", weather_when="all scenes", vfx="none", vfx_when="random (about a third)", vfx_custom="", framing_limit="wide", motion_speed="auto (as written)", season="auto (from photo)", framing_min="close-up", background_people="", background_image=None, background_caption=""):
         d = os.path.join(_chains_root(), "_autoprompt")
         os.makedirs(d, exist_ok=True)
-        key = f'{style}|n{num_singers}|e{ethnicity}|p{performance}|a{age}|c{extra_cameras}|m{microphone}|g{gender}|x{emotion}|xc{emotion_custom}|v{motion}|vc{motion_custom}|h{height}|b{build}|k{camera}|kc{camera_custom}|o{outfit}|l{look}|li{lighting}|s{setting}|w{weather}|ww{weather_when}|f{vfx}|fw{vfx_when}|fc{vfx_custom}|fr{framing_limit}|ms{motion_speed}|se{season}|sv{cls.SEASON_REV}|fm{framing_min}|bp{background_people}'
+        key = f'{style}|n{num_singers}|e{ethnicity}|p{performance}|a{age}|c{extra_cameras}|m{microphone}|g{gender}|x{emotion}|xc{emotion_custom}|v{motion}|vc{motion_custom}|h{height}|b{build}|k{camera}|kc{camera_custom}|o{outfit}|l{look}|li{lighting}|s{setting}|w{weather}|ww{weather_when}|f{vfx}|fw{vfx_when}|fc{vfx_custom}|fr{framing_limit}|ms{motion_speed}|se{season}|pv{cls.PROMPT_REV}|fm{framing_min}|bp{background_people}'
         if setting == cls.SETTING_BACKGROUND_REF and background_image is not None:
             key += '|bg' + hashlib.sha1(np.ascontiguousarray((background_image[:1] * 255).byte().cpu().numpy())).hexdigest()[:12]
         return os.path.join(d, f"scenes_{cls._key(image, num_scenes, key)}.json")
@@ -1742,6 +1742,37 @@ class LTXChainAutoScenes:
             return any(w in c for w in cls.NO_SMILE_WORDS)
         return emotion in cls.NO_SMILE
 
+    # A pose frozen in the photo is not part of who the singer is, but the character block repeats the
+    # caption in every prompt, so "with her arms crossed" comes back in clip after clip as a tic. Only
+    # arm / hand poses are removed; "standing", "sitting", "holding a microphone" stay (mic detection and
+    # the sitting motion read them).
+    POSE_RE = (  # whole-clause forms first, then the bare phrase (order matters, see above)
+        r"(?:^|(?<=\.\s))(?:Her|His|Their)\s+(?:arms|hands)\s+(?:are|is)\s+(?:crossed|folded|clasped|in\s+(?:her|his|their)\s+pockets?|on\s+(?:her|his|their)\s+hips?)[^.]*\.\s*",
+        r",?\s*(?:and\s+)?(?:she|he|they)?\s*(?:has|have)\s+(?:her|his|their)\s+(?:arms|hands)\s+(?:crossed|folded|clasped)(?:\s+(?:in\s+front\s+of|over|across|behind)\s+(?:her|his|their)\s+\w+)?",
+        r",?\s*(?:crossing|folding)\s+(?:her|his|their)\s+arms(?:\s+(?:in\s+front\s+of|over|across)\s+(?:her|his|their)\s+\w+)?",
+        r",?\s*(?:and\s+|while\s+)?(?:with\s+)?(?:her|his|their)?\s*(?:arms|hands)\s+(?:crossed|folded|clasped)"
+        r"(?:\s+(?:in\s+front\s+of|over|across|behind|at)\s+(?:her|his|their)\s+\w+)?(?:\s+in\s+front\s+of\s+(?:her|him|them))?",
+        r",?\s*(?:and\s+|while\s+)?(?:with\s+)?(?:her|his|their)?\s*hands?\s+(?:in|on)\s+(?:her|his|their)\s+"
+        r"(?:pockets?|hips?|waist|chin|cheek|face)",
+        r",?\s*(?:and\s+|while\s+)?(?:with\s+)?(?:her|his|their)?\s*(?:arms|hands)\s+(?:behind|on)\s+(?:her|his|their)\s+"
+        r"(?:back|head)",
+    )
+
+    @classmethod
+    def _strip_pose(cls, desc):
+        t = desc
+        for pat in cls.POSE_RE:
+            t = re.sub(pat, "", t, flags=re.I)
+        # sentences that were only about the pose ("She is ." / "She .")
+        t = re.sub(r"(?:^|(?<=\.\s))(?:She|He|They)\s*(?:is|are)?\s*\.\s*", "", t)
+        t = re.sub(r"(?:^|\.\s*)(?:She|He|They)\s*(?:is|are)?\s*$", "", t)
+        t = re.sub(r"\s+,", ",", t); t = re.sub(r",\s*,", ",", t); t = re.sub(r"\s{2,}", " ", t)
+        t = re.sub(r",\s*\.", ".", t); t = re.sub(r"\s+\.", ".", t).strip().rstrip(",")
+        t = re.sub(r"^[\s.,]+", "", t)  # a removed leading sentence leaves its full stop behind
+        if t != desc:
+            logging.info(f"[LTX Chain] Auto Scenes: dropped the photo's frozen arm/hand pose from the caption -> {t}")
+        return t
+
     @staticmethod
     def _strip_smile(desc):
         """Remove 'smiling' / 'with a big smile' from the caption: the character block is repeated in every
@@ -1792,6 +1823,7 @@ class LTXChainAutoScenes:
             desc = self._strip_words(desc, self.BUILD_WORDS)
         if self._no_smile(emotion, emotion_custom):
             desc = self._strip_smile(desc)
+        desc = self._strip_pose(desc)
         mot_sing, mot_listen, cam_note = self._motion(motion, motion_custom)
         pace = self.MOTION_SPEEDS.get(motion_speed, "")
         if pace and mot_sing and motion not in ("none", "standing still", "sitting"):
@@ -1879,7 +1911,7 @@ class LTXChainAutoScenes:
             what = ", ".join(x for x in ("height" if hgt else "", "body shape" if bld else "") if x)
             bodyd = "; ".join(x for x in (hdesc, bdesc) if x)
             whose = "The singer's" if ns == 1 else "Each singer's"
-            body_lock = (f" {whose} body: {bodyd}. The {what} and proportions stay "
+            body_lock = (f" {whose} body: {bodyd}; the neck its natural length. The {what} and proportions stay "
                          f"exactly the same in every shot and in every framing, including full-body shots.")
         else:
             body_lock = ""

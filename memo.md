@@ -328,7 +328,7 @@ State に `resolution` を追加。LTX-2.5 が安全に出せる 64 の倍数プ
   `outfit` は対象外（季節は歌い手の服に触らない約束なので）。季節の形容詞付き（heavy coats / long coat）か、
   その季節固有の品（scarves / sandals）だけを落とし、ただの "in a coat" は残す。列挙（heavy coats and
   scarves）は `_MORE` で丸ごと食べる（そうしないと "and scarves" が残る）
-- プロンプトはキャッシュされるので、季節の文面を変えたら `SEASON_REV` を上げること（キャッシュキーの `|sv`）。
+- プロンプトはキャッシュされるので、クラス内の文面（季節・アングル・ロック文など）を変えたら `PROMPT_REV` を上げること（キャッシュキーの `|pv`。旧名 SEASON_REV）。
   上げないと解析済みの画像には古い文面が出続ける
 - 20260920_v02「シーンを1にしたのに冒頭でシーンが切り替わる」: 切り替わっていない（plan.json は両クリップとも
   scene 0 / scene_start false）。実際は clip 1 の最初の 4〜12 フレームで構図が腰上→全身に飛んでいた。
@@ -353,6 +353,26 @@ State に `resolution` を追加。LTX-2.5 が安全に出せる 64 の倍数プ
   bare arms" に変更。(2) 背景の人が同じ体型・同じ服のクローン — 描写が一種類しか無いとモデルは複製する。
   `CROWD_VARIETY`（年齢・体型・服装がばらばら）を "any other people visible …" 節に常に同梱
   （background_people が空でも、season さえ指定されていれば入る。両方空なら従来どおり何も足さない）
+- 20260920_v08（stage2_all・REF5 バイパス・framing_min=mid-thigh）: 背景がちゃんと進むようになった。残った 3 点:
+  (1) やたら腕を組む — Florence のキャプション "She is facing the camera with her arms crossed in front of her"
+  が人物ブロックに入り毎クリップ繰り返されていた（写真の一瞬のポーズが性格になる）。`POSE_RE` / `_strip_pose` で
+  腕・手のポーズ句だけ削除（standing / sitting / holding a microphone は残す。mic 判定と sitting が読む）。
+  全文形（"Her arms are crossed." / "has her arms crossed"）を先に、素の句（"with her arms crossed"）を後に
+  処理しないと動詞だけ残る。(2) 首が長い — 膝上アングルの "angled very slightly upward so the singer looks
+  tall and elegant"（あおり＋伸長語）が原因。framing_min=mid-thigh で毎シーンこのアングルになるので目立った。
+  カメラを level にし "the head, neck and shoulders in natural proportion" に置換、body_lock にも
+  "the neck its natural length" を追加。(3) 顔のドリフト — `all` の方が顔が保つのは本当（Stage 1 が形状を
+  決めるので、Stage 2 だけでは顔の骨格ドリフトを直しきれない）。
+- `all` と歩きは両立する（20260919_v06: all ＋ strolling ＋ follow ＋ setting=auto、23 クリップ、腕組みなし・顔安定・
+  継ぎ目滑らか）。v07 のスワイプと引き戻しの正体は `setting = street at night`（文が「写真の背景を置き換えろ」、
+  Stage 1 の参照は写真そのもの → 毎クリップ写真→別の街→写真、の往復）。**`all` の鉄則は「文を写真に合わせる」**:
+  setting=auto (from photo)、framing_min は写真の構図に合わせる（腰上の写真なら close-up 既定のまま）、look は
+  強いグレードを避ける。歩きは「同じ辺りをそぞろ歩く」画になる（遠くへは行かない）
+- `all` では Stage 1 の写真がキャプションに勝つ: v06 のキャプションにも "arms crossed" が入っていたが腕組みは出ず、
+  写真（手を下ろしている）どおりになった。stage2_all（v08）では文が勝って腕を組んだ。`_strip_pose` は stage2_all
+  向けの修正で、all では実質出番なし（無害）
+- stage2_all のまま顔を保ちたい場合の緩和策: 顔の画素を増やす（609x1056、framing_limit を mid-thigh に）、
+  clips_per_scene=6〜8 で 60〜80 秒ごとに参照から再アンカー（ディゾルブ 1 回で顔がリセット）、+Anchor ワークフロー（未検証）
 
 ## 9. このフォルダの中身（Video-Sticher プロジェクト内のバックアップ）
 
