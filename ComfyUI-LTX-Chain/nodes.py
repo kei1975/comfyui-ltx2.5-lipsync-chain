@@ -169,6 +169,17 @@ def _normalize_color(frames, target, strength, window=3):
     return (x + (corrected - x) * float(strength)).clamp(0.0, 1.0)
 
 
+def _compatible_lead_frames(available_frames, fps, start_sec):
+    """Integer seconds for the workflow's duration port AND complete LTX latent groups.
+
+    Never round a short tail up: that changes video duration relative to the audio.
+    At 24 fps the unit is 24 frames; at 25 fps it is 200 frames.
+    """
+    unit = math.lcm(int(fps), 8)
+    available = min(int(available_frames), max(0, int(round(start_sec * fps))))
+    return available // unit * unit
+
+
 def _video_tail(path, k):
     """The last `k` frames of an mp4 as [k, H, W, 3] float 0..1 (decoded with PyAV)."""
     tail = []
@@ -293,6 +304,10 @@ class LTXChainState:
                                             "tooltip": "顔アンカー（ReActor）のワンボタン。face_anchor 出力を ReActor ノードの enabled につないでおくと、ここで ON/OFF できます。OFF = hand-off に顔補正をかけない（従来どおり）。ReActor の無いワークフローでは無視"}),
                 "redo_lead_seconds": ("INT", {"default": 0, "min": 0, "max": 3,
                                               "tooltip": "作り直し（redo）のクリップだけ、前のクリップの末尾をこの秒数ぶん余分に引き継いで生成し、出来上がりからその秒数を捨てます（0 = 従来どおり 1+overlap フレームだけ）。引き継ぐ動きの文脈が 0.3 秒 → 1 秒以上になるので、redo で構図や表情が飛ぶときに。そのクリップだけ生成フレームが増える（1 秒 = +24 フレーム）。fps 24 前提。通常の生成と、シーン切替直後のクリップでは無視"}),
+            },
+            "optional": {
+                "continuity_lead_seconds": ("INT", {"default": 0, "min": 0, "max": 3,
+                    "tooltip": "通常生成の同一シーンで、前クリップの動きを追加で引き継ぐ秒数。推奨 1（24fps）。生成負荷は増えますが出力の長さは変わりません。0 = 従来。シーン切替と redo では無視"}),
             }
         }
 
@@ -314,7 +329,7 @@ class LTXChainState:
             fps, chain_iter, chain_state, resolution=RES_PRESETS[0], generation_width=609, generation_height=1056,
             msr_clips="stage2_all", clips_per_scene=0, scene_cuts="", overlap_frames=8, handoff_color_match=1.0,
             scene_crossfade=True, seed=42, redo_session="", redo_clips="", scene_switching=True, face_anchor=True,
-            redo_lead_seconds=0):
+            redo_lead_seconds=0, continuity_lead_seconds=0):
         available = max(0.0, _audio_seconds(audio) - audio_start_sec)
         target = available if length_mode == "all" else min(float(length_seconds), available)
         if target <= 0:
@@ -401,8 +416,9 @@ class LTXChainState:
                     tail = _video_tail(prev_clip, lead * fps)
                     if tail.shape[1:3] != ref.shape[1:3]:
                         tail = _fit_image(tail, ref.shape[2], ref.shape[1])
-                    lead_frames = tail.shape[0]
-                    ref = torch.cat([tail, ref], dim=0)
+                    lead_frames = _compatible_lead_frames(tail.shape[0], fps, cur["start"])
+                    if lead_frames:
+                        ref = torch.cat([tail[-lead_frames:], ref], dim=0)
                     logging.info(f"[LTX Chain] redo lead: {lead_frames} frames from {os.path.basename(prev_clip)} + {prev_handoff and os.path.basename(prev_handoff)}")
                 elif lead > 0:
                     logging.warning(f"[LTX Chain] redo lead: {prev_clip} not found, using the hand-off frames only")
@@ -417,7 +433,8 @@ class LTXChainState:
             with open(os.path.join(sdir, "plan.json"), "w", encoding="utf-8") as f:
                 json.dump({"settings": {"audio_start_sec": audio_start_sec, "chunk_seconds": chunk_seconds, "fps": fps,
                                         "overlap": overlap, "target": target, "cuts": cuts, "clips_per_scene": int(clips_per_scene),
-                                        "msr_clips": msr_clips, "generation": [out_w, out_h]},
+                                        "msr_clips": msr_clips, "generation": [out_w, out_h],
+                                        "continuity_lead_seconds": int(continuity_lead_seconds)},
                            "plan": plan}, f, ensure_ascii=False, indent=1)
         else:
             session = state["session"]
@@ -430,6 +447,17 @@ class LTXChainState:
                 ref = _fit_image(ref, out_w, out_h)
             prev_handoff = prev
 
+            if not scene_start and int(continuity_lead_seconds) > 0:
+                prev_clip = os.path.join(_session_dir(session), f"clip_{n:03d}.mp4")
+                if os.path.isfile(prev_clip):
+                    tail = _video_tail(prev_clip, int(continuity_lead_seconds) * fps)
+                    lead_frames = _compatible_lead_frames(tail.shape[0], fps, cur["start"])
+                    if lead_frames:
+                        tail = _fit_image(tail[-lead_frames:], out_w, out_h)
+                        ref = torch.cat([tail, ref], dim=0)
+                else:
+                    logging.warning("[LTX Chain] continuity lead: previous clip missing; using hand-off only")
+
         start_sec = cur["start"]
         num_seconds = cur["num_seconds"]
 
@@ -439,6 +467,14 @@ class LTXChainState:
             xfade_prev = os.path.join(sdir_redo, f"handoff_{n - 1:03d}.npy") if redo else prev_handoff
             if not (xfade_prev and os.path.isfile(xfade_prev)):
                 xfade_prev = None
+
+        # Conditioning may contain a swapped face; the dissolve must start from the
+        # actual, unswapped tail. Legacy sessions have no separate seam file.
+        seam_prev = (xfade_prev if scene_crossfade else None) if scene_start else prev_handoff
+        if seam_prev:
+            seam_path = os.path.join(os.path.dirname(seam_prev), f"seam_{n - 1:03d}.npy")
+            if os.path.isfile(seam_path):
+                seam_prev = seam_path
 
         chain = {
             "session": session,
@@ -457,7 +493,7 @@ class LTXChainState:
             # Scene change: dissolve from the end of the previous scene into this clip's head so the
             # cut is a cross-fade, not a jump. The previous clip's hand-off frames overlap this
             # clip's first `handoff` frames in time, so the blend keeps the length (and lip sync).
-            "prev_handoff": (xfade_prev if scene_crossfade else None) if scene_start else prev_handoff,
+            "prev_handoff": seam_prev,
             "scene_index": scene_index,
             "scene_start": scene_start,
             "start_sec": float(start_sec),
@@ -486,7 +522,7 @@ class LTXChainState:
         # lead: generate `lead` seconds early (audio + frame count), Step drops those frames again
         gen_start, gen_seconds = start_sec, num_seconds
         if lead_frames:
-            gen_start, gen_seconds = start_sec - lead_frames / fps, num_seconds + int(round(lead_frames / fps))
+            gen_start, gen_seconds = start_sec - lead_frames / fps, num_seconds + lead_frames // fps
         info = (f"{'REDO ' if redo else ''}clip {n + 1}/{total_chunks}  audio {gen_start:.2f}s -> {gen_start + gen_seconds:.2f}s  "
                 f"(hand-off {ref.shape[0]} frames{f' incl. {lead_frames} lead' if lead_frames else ''}, seed {clip_seed}"
                 f"{', end pinned' if pin_end else ''})  folder={CHAINS_SUBDIR}/{session}")
@@ -542,8 +578,14 @@ class LTXChainStep:
         # redo lead: the clip was generated early on the previous clip's tail; drop that part so
         # frame 0 lands on the session's grid again (the hand-off dissolve below then applies)
         lead = int(chain.get("lead_frames", 0) or 0)
-        if lead and images.shape[0] > lead + handoff:
+        if lead and images.shape[0] <= lead + handoff:
+            raise ValueError("Generated clip is too short for its continuity lead")
+        if lead:
             images = images[lead:]
+            if chunk_audio is not None:
+                chunk_audio = dict(chunk_audio)
+                sample_offset = round(lead * chunk_audio["sample_rate"] / fps)
+                chunk_audio["waveform"] = chunk_audio["waveform"][..., sample_offset:]
             logging.info(f"[LTX Chain] clip {n + 1}: dropped {lead} lead frames")
         strength = chain.get("color_match", 0.0)
         scene_index = chain.get("scene_index", 0)
@@ -581,6 +623,8 @@ class LTXChainStep:
         next_redone = redo and (n + 1) in chain.get("redo_list", [])
         if not redo or next_redone or not os.path.isfile(hand_path):
             np.save(hand_path, hand)
+            np.save(os.path.join(sdir, f"seam_{n:03d}.npy"),
+                    (images[-min(handoff, images.shape[0]):] * 255).clamp(0, 255).byte().cpu().numpy())
             Image.fromarray(hand[-1]).save(os.path.join(sdir, f"last_frame_{n:03d}.png"), compress_level=1)
 
         # Seam: the first `handoff` frames of this clip re-create the tail of the previous clip.
@@ -589,10 +633,10 @@ class LTXChainStep:
         frames = images
         prev_path = chain.get("prev_handoff")
         if n > 0 and prev_path and os.path.isfile(prev_path):
-            prev = torch.from_numpy(np.load(prev_path).astype(np.float32) / 255.0)
+            prev = torch.from_numpy(np.load(prev_path).astype(np.float32) / 255.0).to(images.device)
             k = min(prev.shape[0], handoff, images.shape[0])
             if k > 1:
-                w = torch.linspace(0.0, 1.0, k).view(-1, 1, 1, 1)
+                w = torch.linspace(0.0, 1.0, k, device=images.device).view(-1, 1, 1, 1)
                 head = prev[-k:] * (1.0 - w) + images[:k] * w
                 frames = torch.cat([head, images[k:]], dim=0)
         # every clip but the last of its scene hands its tail to the next clip (which starts with
