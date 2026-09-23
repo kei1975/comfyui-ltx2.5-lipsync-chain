@@ -101,6 +101,30 @@ class Continuity(unittest.TestCase):
         self.assertTrue(np.all(np.load(d/'handoff_001.npy') == 204))
         self.assertTrue(np.all(np.load(d/'seam_001.npy') == 102))
 
+    def test_end_pin_frame_follows_overlap(self):
+        # The pin has to land on the frame the next clip continues from, i.e. the first of the
+        # saved hand-off. Step delivers frames[:-handoff], so that frame is at -handoff and the
+        # last delivered one at -(handoff + 1). A hard-coded frame_idx drifts the moment
+        # overlap_frames changes, and the join then cuts before the model has arrived.
+        for overlap, expected in ((0, -1), (8, -9), (16, -17), (24, -25)):
+            np.save(self.root/'existing/handoff_000.npy',
+                    np.full((overlap + 1, 8, 8, 3), 200, np.uint8))
+            r = self.state(overlap_frames=overlap)
+            self.assertEqual(r[17], expected)
+            self.assertEqual(r[17], -r[5]['handoff'])
+
+        np.save(self.root/'existing/handoff_000.npy', np.full((17, 8, 8, 3), 200, np.uint8))
+        for clip in (1, 2, 3):
+            np.save(self.root/f'existing/handoff_{clip:03d}.npy',
+                    np.full((17, 8, 8, 3), 200, np.uint8))
+        with open(self.root/'existing/plan.json', 'w') as f:
+            json.dump({'settings': {}, 'plan': [{'start': s*9.25, 'num_seconds': 10, 'scene': 0,
+                                                 'scene_start': False, 'keep_frames': None}
+                                                for s in range(4)]}, f)
+        redo = self.state(overlap_frames=16, redo_session='existing', redo_clips='2')
+        self.assertTrue(redo[15])            # pin_end on: clip 3 is not being regenerated
+        self.assertEqual(redo[17], -17)
+
     def test_redo_preserves_existing_tail_pair(self):
         chain = self.state()[5] | {'redo': True, 'redo_list':[1, 3], 'redo_index':0}
         d = self.root/'existing'
@@ -110,6 +134,46 @@ class Continuity(unittest.TestCase):
         self.assertTrue(np.all(np.load(d/'handoff_001.npy') == 17))
         self.assertTrue(np.all(np.load(d/'seam_001.npy') == 19))
 
+
+    def test_redo_tail_dissolves_into_the_previous_take(self):
+        # The next clip is not being redone, so its head still sits on the OLD hand-off. This take
+        # therefore has to end on the old frames; the end pin only bends it that way. Measured on
+        # 20260923_v09: a pinned-only ending left 43-55 against 25 for a clip that got there by
+        # itself, i.e. a visible step at the join.
+        d = Path(self.session('existing'))
+        np.save(d/'handoff_000.npy', np.full((17, 8, 8, 3), 200, np.uint8))
+        np.save(d/'seam_000.npy', np.full((17, 8, 8, 3), 51, np.uint8))
+        np.save(d/'handoff_001.npy', np.full((17, 8, 8, 3), 77, np.uint8))
+        # the delivered tail of the take clip 3 was built on
+        np.save(d/'tail_001.npy', np.full((17, 8, 8, 3), 26, np.uint8))
+        (d/'clip_002.mp4').touch()          # a later attempt, NOT what clip 3 follows
+        base = self.state(overlap_frames=16)[5]
+        # redoing clips 2 and 4: clip 3 in between keeps its old head
+        redo = base | {'redo': True, 'redo_list': [1, 3], 'redo_index': 0, 'pin_end': True}
+
+        ns['LTXChainStep']().run(torch.full((241, 8, 8, 3), .4), redo, 'final', 16, False)
+        out = self.saved[-1]['images']
+        self.assertEqual(out.shape[0], 224)
+        # ends on tail_001 (51/255), not on the stubbed mp4 (0.2): the reference is the take the
+        # NEXT clip follows, not whichever attempt this run happens to replace
+        self.assertAlmostEqual(float(out[-1].mean()), 26/255, places=5)
+        self.assertTrue(abs(float(out[-1].mean()) - .2) > .002)
+        # ... and the fade begins on this take's own content, not on a jump
+        self.assertAlmostEqual(float(out[-17].mean()), .4, places=5)
+        self.assertTrue(26/255 < float(out[-9].mean()) < .4)
+        # the old hand-off and tail stay: the next clip follows them and is not being regenerated
+        self.assertTrue(np.all(np.load(d/'handoff_001.npy') == 77))
+        self.assertTrue(np.all(np.load(d/'tail_001.npy') == 26))
+
+        # when the next clip IS regenerated, this take owns the join: no dissolve, and the tail it
+        # delivers is recorded so a later redo of this clip alone has the right thing to fade into
+        (d/'clip_002.mp4').touch()
+        ns['LTXChainStep']().run(torch.full((241, 8, 8, 3), .4),
+                                 redo | {'redo_list': [1, 2], 'pin_end': False}, 'final', 16, False)
+        out2 = self.saved[-1]['images']
+        self.assertAlmostEqual(float(out2[-1].mean()), .4, places=5)
+        self.assertTrue(np.all(np.load(d/'tail_001.npy') == 102))   # 0.4 * 255
+        self.assertEqual(np.load(d/'tail_001.npy').shape, (17, 8, 8, 3))
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

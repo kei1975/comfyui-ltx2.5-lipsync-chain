@@ -270,7 +270,7 @@ class LTXChainState:
                                            "tooltip": "length_mode が seconds のとき、合計で作る秒数"}),
                 "fps": ("INT", {"default": 24, "min": 1, "max": 120}),
                 "resolution": (RES_PRESETS, {"default": RES_PRESETS[0],
-                                             "tooltip": "書き出しサイズ。LTX-2.5 が安全に出せる 64 の倍数のサイズから選ぶ。auto = 画像の縦横比のまま generation_width×height の面積で決める。数値を選ぶとその WxH で書き出し（画像はその比率に中央クロップ）。大きいほど VRAM を使うので 12GB では ~600k px 目安。(test) 付きは動き・カメラ・シーン切替を速く確認するための小サイズ（480p 相当以下）。顔の画素が少ないので顔の一貫性・リップシンク・体型の判断には使わないこと。本番と同じセッションで redo には使えない（サイズが混ざる）"}),
+                                             "tooltip": "書き出しサイズ。LTX-2.5 が安全に出せる 64 の倍数のサイズから選ぶ。auto = 画像の縦横比のまま generation_width×height の面積で決める。数値を選ぶとその WxH で書き出し（画像はその比率に中央クロップ）。大きいほど VRAM を使うので 12GB では ~600k px 目安。引き・全身のカットで顔が崩れるときは 576x1024 に上げる（顔の形を決める Stage 1 は出力の半分の解像度で走るため、512x896 の全身では顔が latent 1 セルしかない。576x1024 で Stage 1 の格子が 8x14→9x16、セル数 +29%）。完全な解決ではないので、寄りで撮るほうが効果は大きい。(test) 付きは動き・カメラ・シーン切替を速く確認するための小サイズ（480p 相当以下）。顔の画素が少ないので顔の一貫性・リップシンク・体型の判断には使わないこと。本番と同じセッションで redo には使えない（サイズが混ざる）"}),
                 "generation_width": ("INT", {"default": 609, "min": 64, "max": 4096,
                                              "tooltip": "生成サイズの目安（幅）。縦横比は入力画像のまま、面積がこの幅×高さになるよう 64 の倍数に丸めます"}),
                 "generation_height": ("INT", {"default": 1056, "min": 64, "max": 4096,
@@ -312,16 +312,18 @@ class LTXChainState:
         }
 
     RETURN_TYPES = ("IMAGE", "FLOAT", "INT", "INT", "INT", CHAIN_TYPE, "STRING", "INT", "INT", "BOOLEAN", "BOOLEAN", "INT", "BOOLEAN",
-                    "INT", "IMAGE", "BOOLEAN", "BOOLEAN")
+                    "INT", "IMAGE", "BOOLEAN", "BOOLEAN", "INT")
     RETURN_NAMES = ("image", "start_sec", "num_seconds", "chunk_index", "total_chunks", "chain", "info", "width", "height",
-                    "use_msr_stage1", "use_msr_stage2", "scene_index", "bypass_image", "seed", "end_image", "pin_end", "face_anchor")
+                    "use_msr_stage1", "use_msr_stage2", "scene_index", "bypass_image", "seed", "end_image", "pin_end", "face_anchor",
+                    "end_pin_frame")
     OUTPUT_TOOLTIPS = (None, None, None, None, None, None, None, None, None, None, None,
                        "このクリップのシーン番号（0 始まり）。Scene Prompt ノードが使う",
                        "True = シーン切り替え直後のクリップ。Stage 1 の LTXVImgToVideoInplace の bypass につなぐ（受け渡しフレームを使わず参照だけから生成）",
                        "このクリップ用のシード（RandomNoise の noise_seed につなぐ）",
                        "作り直しのとき、次のクリップとの継ぎ目に合わせるための終端フレーム（LTXVAddGuide の image につなぐ）",
                        "True = 終端フレームを固定する（作り直しで次のクリップがあるとき）。AddGuide の切り替えスイッチにつなぐ",
-                       "face_anchor の値をそのまま出力。ReActor ノードの enabled（入力に変換）につなぐ")
+                       "face_anchor の値をそのまま出力。ReActor ノードの enabled（入力に変換）につなぐ",
+                       "終端フレームを固定する位置（末尾から数えたフレーム番号、負の数）。LTXVAddGuide の frame_idx（入力に変換）につなぐ。overlap_frames から自動で決まるので手で合わせる必要はない")
     FUNCTION = "run"
     CATEGORY = "LTX Chain"
 
@@ -518,6 +520,9 @@ class LTXChainState:
             if n + 1 < total_chunks and not plan[n + 1]["scene_start"] and (n + 1) not in redo_list and os.path.isfile(old_hand):
                 end_image = torch.from_numpy(np.load(old_hand)[:1].astype(np.float32) / 255.0)
                 pin_end = True
+        # Step reads the same flag to dissolve the new clip's tail back into the old one: a single
+        # pinned frame only bends the ending towards the old pose, it does not land on it.
+        chain["pin_end"] = pin_end
         clip_seed = (int(seed) + n * 1000003 + attempt * 7919) % (2 ** 63)
         # lead: generate `lead` seconds early (audio + frame count), Step drops those frames again
         gen_start, gen_seconds = start_sec, num_seconds
@@ -532,8 +537,12 @@ class LTXChainState:
         # A scene-start clip has no start frame, so it needs the references at stage 1 as well.
         use_msr_stage1 = (msr_clips == "all") or n == 0 or scene_start
         use_msr_stage2 = (msr_clips in ("all", "stage2_all")) or n == 0 or scene_start
+        # The end pin must sit on the frame the NEXT clip continues from: the saved hand-off starts
+        # at frame -handoff, so a smaller |frame_idx| would put the model's return to the old pose
+        # inside the frames Step trims away, and the join would cut before it arrives.
         return (ref, float(gen_start), gen_seconds, n, total_chunks, chain, info, out_w, out_h,
-                use_msr_stage1, use_msr_stage2, scene_index, scene_start, clip_seed, end_image, pin_end, bool(face_anchor))
+                use_msr_stage1, use_msr_stage2, scene_index, scene_start, clip_seed, end_image, pin_end, bool(face_anchor),
+                -handoff)
 
 
 class LTXChainStep:
@@ -621,7 +630,11 @@ class LTXChainStep:
         hand_path = os.path.join(sdir, f"handoff_{n:03d}.npy")
         redo = bool(chain.get("redo"))
         next_redone = redo and (n + 1) in chain.get("redo_list", [])
-        if not redo or next_redone or not os.path.isfile(hand_path):
+        # True when this run owns the hand-off the NEXT clip will be built on. The delivered tail is
+        # saved under the same condition (below, after the trim) so the two always describe the same
+        # take, however many times this clip is redone afterwards.
+        save_handoff = not redo or next_redone or not os.path.isfile(hand_path)
+        if save_handoff:
             np.save(hand_path, hand)
             np.save(os.path.join(sdir, f"seam_{n:03d}.npy"),
                     (images[-min(handoff, images.shape[0]):] * 255).clamp(0, 255).byte().cpu().numpy())
@@ -647,6 +660,39 @@ class LTXChainStep:
         elif n + 1 < total and frames.shape[0] > handoff:
             frames = frames[:-handoff]
         clip_path = os.path.join(sdir, f"clip_{n + 1:03d}.mp4")
+        # Tail dissolve (redo only, when the NEXT clip keeps its old head). The next clip's first
+        # frames were built on the old hand-off, so the join only stays continuous if this clip
+        # still ENDS on the old frames. The end pin bends the new take towards them but cannot
+        # land on them: the tail overlap is not latent-aligned (the hand-off starts on the last
+        # frame of a latent group), so it is a single-frame guide, and measured it leaves ~40-55
+        # against ~25 for a clip that ended there by itself. So finish the job in pixels, the same
+        # way the head is handled: fade the new tail into the old one over the overlap. The last
+        # frame is then the old frame exactly, and the next clip is untouched.
+        tail_path = os.path.join(sdir, f"tail_{n:03d}.npy")
+        if save_handoff:
+            np.save(tail_path, (frames[-min(handoff, frames.shape[0]):] * 255).clamp(0, 255).byte().cpu().numpy())
+        if redo and chain.get("pin_end"):
+            # Fade into the take the NEXT clip was built on, which tail_NNN.npy names. NOT simply
+            # the file this run replaces: after a second redo that file is the previous *attempt*,
+            # which is no more connected to the next clip than this one is. (Measured on
+            # 20260923_v09: fading into attempt 5 landed 55.5 from the join instead of ~25.)
+            if os.path.isfile(tail_path):
+                old_tail = torch.from_numpy(np.load(tail_path).astype(np.float32) / 255.0).to(frames.device)
+            elif os.path.isfile(clip_path):
+                old_tail = _video_tail(clip_path, handoff).to(frames.device)  # session predates tail_NNN
+                logging.warning(f"[LTX Chain] clip {n + 1}: no tail_{n:03d}.npy; fading into "
+                                f"{os.path.basename(clip_path)}, which is only right on a first redo")
+            else:
+                old_tail = None
+            if old_tail is not None and old_tail.shape[1:3] != frames.shape[1:3]:
+                old_tail = _fit_image(old_tail, frames.shape[2], frames.shape[1]).to(frames.device)
+            k = 0 if old_tail is None else min(handoff, old_tail.shape[0], frames.shape[0])
+            if k > 1:
+                w = torch.linspace(0.0, 1.0, k, device=frames.device).view(-1, 1, 1, 1)
+                tail = frames[-k:] * (1.0 - w) + old_tail[-k:] * w
+                frames = torch.cat([frames[:-k], tail], dim=0)
+                logging.info(f"[LTX Chain] clip {n + 1}: tail dissolved into the previous take "
+                             f"over {k} frames (the next clip keeps its old head)")
         if redo and os.path.isfile(clip_path):
             bdir = os.path.join(sdir, "redo")
             os.makedirs(bdir, exist_ok=True)
