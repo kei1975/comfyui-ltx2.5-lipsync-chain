@@ -1232,7 +1232,7 @@ class LTXChainAutoScenes:
 
     # Built prompts are cached by their settings, so a change to any wording in this class would keep
     # serving the old text for an image that had already been analysed. Bump this whenever wording changes.
-    PROMPT_REV = 5
+    PROMPT_REV = 7
 
     # LTX draws one background person and then copies it: without this the pavement fills with the same
     # slim young woman in the same dress. It is only ever added next to the "any other people visible"
@@ -1449,11 +1449,18 @@ class LTXChainAutoScenes:
         "petite": ("petite", "a petite, small, delicate frame with a short stature"),
         "short": ("short", "a short stature with a compact frame"),
         "average height": ("average-height", "an average adult height with normal adult proportions"),
-        "tall": ("tall", "a tall, long-legged adult frame with a long torso, the head small in proportion to the "
-                         "body, adult proportions about eight heads tall"),
-        "very tall": ("very tall", "a very tall, towering, long-legged adult frame with a long torso and long arms, "
-                                   "the head small in proportion to the body, about eight and a half heads tall, "
-                                   "never child-like, stubby or shrunken proportions"),
+        # "long torso" used to be in both of these. Height has to be expressed somewhere, and with a
+        # waist-up `framing_limit` the legs are out of shot, so the model put the length into the one
+        # part that was still visible: the neck. The length now names the LEGS and the limbs only.
+        # Everything here is affirmative on purpose: the text encoder has no reliable negation, so a
+        # "never stubby" would only put "stubby" into the conditioning -- and it would be fighting the
+        # workflow's negative prompt, which already carries those words. Heads-tall is the whole
+        # instruction, and it only lands if the stage-1 MSR guide is given a full-body reference.
+        "tall": ("tall", "a tall adult frame with long legs and a long stride, adult "
+                         "proportions about eight heads tall"),
+        "very tall": ("very tall", "a very tall, towering adult frame with long legs and long arms, "
+                                   "high wide shoulders, adult proportions about eight and a half "
+                                   "heads tall"),
     }
     BUILDS = {
         "none": ("", ""),
@@ -2001,15 +2008,25 @@ class LTXChainAutoScenes:
         gtag = g if gender in ("female", "male") else ""
         body = ", ".join(x for x in (hgt, bld) if x)  # "tall, slim"
         body = (body + " ") if body else ""
-        # keep the proportions from drifting across the video (full-body angles especially)
+        # Keep the proportions from drifting across the video. This is stated whether or not a height
+        # or build was chosen: the drift is cumulative, because every clip is generated from the
+        # previous clip's last frames, so a neck that grows a little per clip is unmistakable by the
+        # fifteenth. The neck gets its own sentence rather than a trailing clause - the negative
+        # prompt guards the opposite failure (oversized head, stubby legs, chibi) and nothing was
+        # holding the elongating direction. Phrased affirmatively for the same reason as HEIGHTS:
+        # "never swan-like" would only feed "swan-like" to the encoder, and the negative prompt
+        # already names elongated/long/swan/stretched neck.
+        whose = "The singer's" if ns == 1 else "Each singer's"
+        neck_lock = ("The neck is of normal, natural length, with the head sitting at its natural "
+                     "distance directly above the shoulders.")
         if hgt or bld:
             what = ", ".join(x for x in ("height" if hgt else "", "body shape" if bld else "") if x)
             bodyd = "; ".join(x for x in (hdesc, bdesc) if x)
-            whose = "The singer's" if ns == 1 else "Each singer's"
-            body_lock = (f" {whose} body: {bodyd}; the neck its natural length. The {what} and proportions stay "
+            body_lock = (f" {whose} body: {bodyd}. {neck_lock} The {what} and proportions stay "
                          f"exactly the same in every shot and in every framing, including full-body shots.")
         else:
-            body_lock = ""
+            body_lock = (f" {neck_lock} {whose} body proportions stay exactly the same as in the "
+                         f"reference image in every shot and in every framing, including full-body shots.")
         if ns == 1:
             who = body + " ".join(x for x in (agep, eth) if x)
             who = who.strip()
