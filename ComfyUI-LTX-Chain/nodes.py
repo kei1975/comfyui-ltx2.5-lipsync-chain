@@ -1232,7 +1232,7 @@ class LTXChainAutoScenes:
 
     # Built prompts are cached by their settings, so a change to any wording in this class would keep
     # serving the old text for an image that had already been analysed. Bump this whenever wording changes.
-    PROMPT_REV = 7
+    PROMPT_REV = 8
 
     # LTX draws one background person and then copies it: without this the pavement fills with the same
     # slim young woman in the same dress. It is only ever added next to the "any other people visible"
@@ -1535,6 +1535,18 @@ class LTXChainAutoScenes:
             "movements in time with the beat, staying in the same spot, the face natural and the lips in sync, "
             "already dancing at the very first frame, no standing start",
             "moving lightly to the beat in place, small dance steps, already moving at the first frame", None),
+        # The one preset whose instrumental half is bigger than its singing half. Between the vocals
+        # the mouth is free, so the choreography can open up there at no cost to lip sync, and the
+        # singing half keeps the head steady enough to stay on the words. Named moves, not a named
+        # dancer: a performer's name conditions almost nothing, the moves themselves condition a lot.
+        "dance, bigger between the vocals": (
+            "The singer dances in place to the song while singing: steps and hip sway in time with the beat, "
+            "the shoulders working, the head held fairly steady so the mouth stays to camera, the face natural "
+            "and the lips in sync, already dancing at the very first frame, no standing start",
+            "dancing hard through the instrumental, sharp staccato arm and hand movements snapping on the beat, "
+            "shoulder and chest pops, a crisp spin on the spot, rising onto the toes, freezing into a held pose "
+            "on the accent and breaking out of it again, full of attack, already mid-move at the first frame",
+            "Camera locked, the dancing stays within the frame."),
         "dancing": (
             "The singer dances to the song while singing: the whole body moves with the rhythm, steps, turns and "
             "arm movements in time with the beat, energetic but graceful, the face natural and the lips in sync, "
@@ -1613,17 +1625,26 @@ class LTXChainAutoScenes:
 
     def _intro(self, ns, mic=True, emo="", mot=""):
         at = "at the microphone" if mic else "at the camera"
-        mot = f" Movement: {mot}." if mot else ""
+        # The idle here used to be fixed - "swaying gently ... waiting for the cue" - with the chosen
+        # motion appended after it as "Movement: ...". That put two different movements in one
+        # sentence, and the calm one won every time, so a dance asked for between the vocals came out
+        # as a sway. A motion of its own now replaces the idle rather than queueing behind it.
         if ns == 1:
-            emo = (f" The face keeps {emo}." if emo else "") + mot
-            return ("The singer is not singing yet: the lips stay closed, listening to the music, swaying gently to the "
-                    f"rhythm, the head nodding softly on the beat, breathing calmly, glancing {at} while "
-                    f"waiting for the cue.{emo} Single continuous take, photorealistic, crisp focus on the face, steady "
+            idle = (f"swaying gently to the rhythm, the head nodding softly on the beat, breathing calmly, "
+                    f"glancing {at} while waiting for the cue")
+            if mot:
+                idle = f"{mot}, glancing {at} between moves"
+            emo = f" The face keeps {emo}." if emo else ""
+            return (f"The singer is not singing yet: the lips stay closed, listening to the music, {idle}."
+                    f"{emo} Single continuous take, photorealistic, crisp focus on the face, steady "
                     "exposure and white balance. Audio: the instrumental of the song with quiet room tone.")
         who = "The two singers" if ns == 2 else f"The {self._num_word(ns)} singers"
-        emo = (f" Their faces keep {emo}." if emo else "") + mot
-        return (f"{who} are not singing yet: lips closed, listening to the music, swaying gently to the rhythm, heads "
-                f"nodding softly on the beat, glancing at each other and {at} while waiting for the cue.{emo} "
+        idle = (f"swaying gently to the rhythm, heads nodding softly on the beat, glancing at each other "
+                f"and {at} while waiting for the cue")
+        if mot:
+            idle = f"{mot}, glancing at each other and {at} between moves"
+        emo = f" Their faces keep {emo}." if emo else ""
+        return (f"{who} are not singing yet: lips closed, listening to the music, {idle}.{emo} "
                 "Single continuous take, photorealistic, steady exposure. Audio: the instrumental of the song.")
 
     @classmethod
@@ -1658,8 +1679,8 @@ class LTXChainAutoScenes:
                                    "tooltip": "任意。感情・表情を自由記述（英語推奨。例: a shy, bashful mood with a small nervous smile）。空なら上の emotion を使用"}),
                 "motion": (["none", "standing still", "gentle sway", "hand gestures", "light dance in place", "dancing",
                             "walking toward camera", "jogging toward camera", "running toward camera", "walking sideways",
-                            "strolling", "sitting"], {"default": "none",
-                           "tooltip": "人物の動き。none=指定なし / standing still=その場に立ったまま / gentle sway=その場で軽く揺れる / hand gestures=その場で手振り / light dance in place=その場で軽く踊る / dancing=踊る / walking toward camera=カメラに向かって歩く（カメラは後退追従） / jogging・running toward camera=カメラに向かって走る（カメラは同速で後退、手持ち感） / walking sideways=横に歩く（カメラ横追従） / strolling=散歩（カメラ追従） / sitting=座ったまま。歩く・踊る時は microphone=no 推奨。下の motion_custom に書くとそちらが優先"}),
+                            "strolling", "sitting", "dance, bigger between the vocals"], {"default": "none",
+                           "tooltip": "人物の動き。none=指定なし / standing still=その場に立ったまま / gentle sway=その場で軽く揺れる / hand gestures=その場で手振り / light dance in place=その場で軽く踊る / dancing=踊る / walking toward camera=カメラに向かって歩く（カメラは後退追従） / jogging・running toward camera=カメラに向かって走る（カメラは同速で後退、手持ち感） / walking sideways=横に歩く（カメラ横追従） / strolling=散歩（カメラ追従） / sitting=座ったまま / dance, bigger between the vocals=その場で踊るが、歌っていない間奏で大きく踊る（キレのある腕の振り・肩のポップ・その場の回転・ポーズで静止）。歌唱中は頭を安定させて口が見えるようにするので、リップシンクを保ったまま間奏だけ盛り上げられる。歩く・踊る時は microphone=no 推奨。下の motion_custom に書くとそちらが優先"}),
                 "motion_custom": ("STRING", {"default": "",
                                   "tooltip": "任意。動きを自由記述（英語推奨。例: The singer slowly turns around and walks away from the camera）。空なら上の motion を使用"}),
                 "height": (["none", "petite", "short", "average height", "tall", "very tall"], {"default": "none",
